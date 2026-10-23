@@ -1,0 +1,17 @@
+services:
+  gamerhub:
+    build: .
+    image: gamerhub:latest
+    container_name: gamerhub
+    ports:
+      - "8080:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TZ: ${TZ:-America/Sao_Paulo}
+    # Disco local do host (não use compartilhamento SMB/NFS: o SQLite em WAL precisa de locks locais).
+    # A pasta precisa ser gravável pelo uid 1000: `sudo chown -R 1000:1000 data`.
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

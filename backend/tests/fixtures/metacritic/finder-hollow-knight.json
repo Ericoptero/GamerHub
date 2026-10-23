@@ -1,0 +1,236 @@
+{
+ "data": {
+  "totalResults": 1373,
+  "id": "eed862a7-ce73-4afa-dc07-d16d2b75f3a3",
+  "items": [
+   {
+    "id": 1300450663,
+    "type": "game-title",
+    "typeId": 13,
+    "title": "Hollow Knight",
+    "slug": "hollow-knight",
+    "images": [
+     {
+      "id": "6-1-707177-13",
+      "filename": "6-1-707177-13.jpg",
+      "dateCreated": {
+       "date": null,
+       "timezone": null
+      },
+      "alt": null,
+      "credits": null,
+      "path": null,
+      "cropGravity": null,
+      "crop": null,
+      "caption": null,
+      "typeName": "cardImage",
+      "imageUrl": null,
+      "width": 1000,
+      "height": 1623,
+      "sType": null,
+      "bucketType": "catalog",
+      "bucketPath": "/provider/6/3/6-1-707177-13.jpg",
+      "mediaType": null,
+      "provider": "6"
+     }
+    ],
+    "criticScoreSummary": {
+     "url": "/game/hollow-knight/critic-reviews/",
+     "score": 90
+    },
+    "releaseDate": "2018-06-12",
+    "premiereYear": 2018,
+    "platforms": [
+     {
+      "name": "Nintendo Switch"
+     },
+     {
+      "name": "PC"
+     },
+     {
+      "name": "Wii U"
+     },
+     {
+      "name": "PlayStation 4"
+     },
+     {
+      "name": "Xbox One"
+     },
+     {
+      "name": "Nintendo Switch 2"
+     },
+     {
+      "name": "PlayStation 5"
+     }
+    ]
+   },
+   {
+    "id": 1300490867,
+    "type": "game-title",
+    "typeId": 13,
+    "title": "Hollow Knight: Voidheart Edition",
+    "slug": "hollow-knight-voidheart-edition",
+    "images": [
+     {
+      "id": "6-1-685951-52",
+      "filename": "6-1-685951-52.jpg",
+      "dateCreated": {
+       "date": null,
+       "timezone": null
+      },
+      "alt": null,
+      "credits": null,
+      "path": null,
+      "cropGravity": null,
+      "crop": null,
+      "caption": null,
+      "typeName": "cardImage",
+      "imageUrl": null,
+      "width": 300,
+      "height": 300,
+      "sType": null,
+      "bucketType": "catalog",
+      "bucketPath": "/provider/6/12/6-1-685951-52.jpg",
+      "mediaType": null,
+      "provider": "6"
+     }
+    ],
+    "criticScoreSummary": {
+     "url": "/game/hollow-knight-voidheart-edition/critic-reviews/",
+     "score": 89
+    },
+    "releaseDate": "2018-09-25",
+    "premiereYear": 2018,
+    "platforms": [
+     {
+      "name": "Xbox One"
+     },
+     {
+      "name": "PlayStation 4"
+     },
+     {
+      "name": "PlayStation 5"
+     }
+    ]
+   },
+   {
+    "id": 1300497468,
+    "type": "game-title",
+    "typeId": 13,
+    "title": "Hollow Knight: Silksong",
+    "slug": "hollow-knight-silksong",
+    "images": [
+     {
+      "id": "7-1757261088",
+      "filename": "7-1757261088.jpg",
+      "dateCreated": {
+       "date": null,
+       "timezone": null
+      },
+      "alt": null,
+      "credits": null,
+      "path": null,
+      "cropGravity": null,
+      "crop": null,
+      "caption": null,
+      "typeName": "cardImage",
+      "imageUrl": null,
+      "width": 476,
+      "height": 712,
+      "sType": null,
+      "bucketType": "catalog",
+      "bucketPath": "/provider/7/2/7-1757261088.jpg",
+      "mediaType": null,
+      "provider": "7"
+     }
+    ],
+    "criticScoreSummary": {
+     "url": "/game/hollow-knight-silksong/critic-reviews/",
+     "score": 90
+    },
+    "releaseDate": "2025-09-04",
+    "premiereYear": 2025,
+    "platforms": [
+     {
+      "name": "PC"
+     },
+     {
+      "name": "Nintendo Switch"
+     },
+     {
+      "name": "PlayStation 5"
+     },
+     {
+      "name": "Xbox Series X"
+     },
+     {
+      "name": "Nintendo Switch 2"
+     },
+     {
+      "name": "PlayStation 4"
+     },
+     {
+      "name": "Xbox One"
+     }
+    ]
+   }
+  ]
+ },
+ "links": {
+  "self": {
+   "href": "https://backend.metacritic.com/finder/metacritic/search/hollow%20knight/web?mcoTypeId=13&offset=0&limit=5",
+   "meta": {
+    "pageNum": 1,
+    "count": 5
+   }
+  },
+  "prev": {
+   "href": null,
+   "meta": null
+  },
+  "next": {
+   "href": "https://backend.metacritic.com/finder/metacritic/search/hollow%20knight/web?mcoTypeId=13&offset=5&limit=5",
+   "meta": {
+    "pageNum": 2,
+    "count": 5
+   }
+  },
+  "first": {
+   "href": "https://backend.metacritic.com/finder/metacritic/search/hollow%20knight/web?mcoTypeId=13&offset=0&limit=5",
+   "meta": {
+    "pageNum": 1,
+    "count": 5
+   }
+  },
+  "last": {
+   "href": "https://backend.metacritic.com/finder/metacritic/search/hollow%20knight/web?mcoTypeId=13&offset=1370&limit=5",
+   "meta": {
+    "pageNum": 275,
+    "count": 3
+   }
+  },
+  "sortOptions": [
+   {
+    "label": "Relevance",
+    "href": "https://backend.metacritic.com/finder/metacritic/search/hollow%20knight/web?mcoTypeId=13&offset=0&limit=5&sortBy="
+   },
+   {
+    "label": "Popularity",
+    "href": "https://backend.metacritic.com/finder/metacritic/search/hollow%20knight/web?mcoTypeId=13&offset=0&limit=5&sortBy=REVIEW_COUNT&sortDirection=DESC"
+   },
+   {
+    "label": "Metascore",
+    "href": "https://backend.metacritic.com/finder/metacritic/search/hollow%20knight/web?mcoTypeId=13&offset=0&limit=5&sortBy=META_SCORE&sortDirection=DESC"
+   },
+   {
+    "label": "Newest Release",
+    "href": "https://backend.metacritic.com/finder/metacritic/search/hollow%20knight/web?mcoTypeId=13&offset=0&limit=5&sortBy=RELEASE_DATE&sortDirection=DESC"
+   }
+  ]
+ },
+ "meta": {
+  "componentName": null,
+  "componentDisplayName": null,
+  "componentType": null
+ }
+}

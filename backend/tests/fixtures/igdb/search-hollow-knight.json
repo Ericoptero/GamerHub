@@ -1,0 +1,104 @@
+[
+ {
+  "id": 14593,
+  "name": "Hollow Knight",
+  "alternative_names": [
+   {
+    "id": 1,
+    "name": "HK"
+   }
+  ],
+  "first_release_date": 1487894400,
+  "platforms": [
+   {
+    "id": 6,
+    "name": "PC (Microsoft Windows)"
+   },
+   {
+    "id": 130,
+    "name": "Nintendo Switch"
+   },
+   {
+    "id": 48,
+    "name": "PlayStation 4"
+   },
+   {
+    "id": 49,
+    "name": "Xbox One"
+   },
+   {
+    "id": 14,
+    "name": "Mac"
+   }
+  ],
+  "cover": {
+   "id": 9,
+   "image_id": "co93cr"
+  },
+  "game_type": {
+   "id": 1,
+   "type": "Main Game"
+  },
+  "genres": [
+   {
+    "id": 8,
+    "name": "Platform"
+   },
+   {
+    "id": 31,
+    "name": "Adventure"
+   }
+  ],
+  "url": "https://www.igdb.com/games/hollow-knight"
+ },
+ {
+  "id": 115289,
+  "name": "Hollow Knight: Silksong",
+  "first_release_date": 1756944000,
+  "platforms": [
+   {
+    "id": 6,
+    "name": "PC (Microsoft Windows)"
+   },
+   {
+    "id": 130,
+    "name": "Nintendo Switch"
+   },
+   {
+    "id": 167,
+    "name": "PlayStation 5"
+   }
+  ],
+  "cover": {
+   "id": 10,
+   "image_id": "coa1b2"
+  },
+  "game_type": {
+   "id": 1,
+   "type": "Main Game"
+  },
+  "genres": [
+   {
+    "id": 8,
+    "name": "Platform"
+   }
+  ],
+  "url": "https://www.igdb.com/games/hollow-knight-silksong"
+ },
+ {
+  "id": 26286,
+  "name": "Hollow Knight: Gods & Glory",
+  "first_release_date": 1535068800,
+  "platforms": [
+   {
+    "id": 6,
+    "name": "PC (Microsoft Windows)"
+   }
+  ],
+  "game_type": {
+   "id": 2,
+   "type": "DLC"
+  },
+  "url": "https://www.igdb.com/games/hollow-knight-gods-and-glory"
+ }
+]

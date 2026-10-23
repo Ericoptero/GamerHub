@@ -1,0 +1,43 @@
+[project]
+name = "gamerhub"
+version = "0.1.0"
+description = "Backlog de jogos self-hosted"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "httpx>=0.28",
+    "aiolimiter>=1.2",
+    "tenacity>=9.0",
+    "rapidfuzz>=3.10",
+    "howlongtobeatpy>=1.0.24,<2",
+    "pillow>=11.0",
+    "openpyxl>=3.1",
+    "python-multipart>=0.0.18",
+    "typer>=0.15",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "respx>=0.22",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = ["live: acessa serviços externos de verdade (rode com -m live)"]
+addopts = "-m 'not live'"
+filterwarnings = [
+    "ignore::DeprecationWarning:howlongtobeatpy.*",
+    "ignore:Using `httpx` with `starlette.testclient`",
+]

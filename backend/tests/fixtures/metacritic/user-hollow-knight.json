@@ -1,0 +1,25 @@
+{
+ "data": {
+  "item": {
+   "id": "1400509650",
+   "max": 10,
+   "score": 9,
+   "reviewCount": 6464,
+   "positiveCount": 5804,
+   "neutralCount": 372,
+   "negativeCount": 288,
+   "sentiment": "Universal acclaim",
+   "url": "/game/hollow-knight/user-reviews/?platform=nintendo-switch"
+  }
+ },
+ "links": {
+  "self": {
+   "href": "https://backend.metacritic.com/reviews/metacritic/user/games/hollow-knight/stats/web"
+  }
+ },
+ "meta": {
+  "componentName": null,
+  "componentDisplayName": null,
+  "componentType": null
+ }
+}

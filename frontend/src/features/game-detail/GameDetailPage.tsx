@@ -1,0 +1,136 @@
+import { useState, type CSSProperties } from "react";
+import { useNavigate, useParams } from "react-router";
+
+import { ApiError, errorMessage } from "../../api/client";
+import { useDeleteGame, useDevices, useGame, useUpdateGame } from "../../api/queries";
+import type { GameDetail, Status } from "../../api/types";
+import { useConfirm } from "../../components/Confirm";
+import { ErrorState, LoadingState, NotFound } from "../../components/NotFound";
+import { useToast } from "../../components/Toast";
+import { useJobWatcher } from "../../components/useJobWatcher";
+import { STATUS1 } from "../../lib/constants";
+import { palette } from "../../lib/cover";
+import { parseUtc, todayIso } from "../../lib/format";
+import { InfoCard, ScoresCard, WhereCard } from "./Aside";
+import { CommentsSection } from "./CommentsSection";
+import { EditGameDialog } from "./EditGameDialog";
+import styles from "./GameDetail.module.css";
+import { Hero } from "./Hero";
+import { MatchReview, StoreReviewsSection } from "./IntegrationSection";
+import { MediaSection } from "./MediaSection";
+import { ReviewSection } from "./ReviewSection";
+
+const ENRICH_POLL_MS = 2000;
+const ENRICH_POLL_WINDOW_MS = 2 * 60_000;
+
+/** Recém-adicionado pela integração: o job de refresh roda em segundo plano; recarrega até ele terminar. */
+function enrichPoll(game: GameDetail | undefined): number | false {
+  if (!game || game.last_enriched_at) return false;
+  if (!game.links.some((l) => l.status === "confirmed")) return false;
+  return Date.now() - parseUtc(game.created_at).getTime() < ENRICH_POLL_WINDOW_MS ? ENRICH_POLL_MS : false;
+}
+
+export function GameDetailPage() {
+  const id = Number(useParams().id);
+  const game = useGame(id, enrichPoll);
+  const devices = useDevices();
+
+  if (!Number.isFinite(id)) return <NotFound message="Jogo inválido." />;
+  if (game.isError) {
+    if (game.error instanceof ApiError && game.error.status === 404) return <NotFound message="Esse jogo não está na biblioteca." />;
+    return <ErrorState error={game.error} onRetry={() => game.refetch()} />;
+  }
+  if (game.isPending) return <LoadingState text="Carregando o jogo…" />;
+  return <Detail key={game.data.id} game={game.data} devices={devices.data ?? []} />;
+}
+
+function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<ReturnType<typeof useDevices>["data"]> }) {
+  const update = useUpdateGame(game.id);
+  const del = useDeleteGame();
+  const toast = useToast();
+  const navigate = useNavigate();
+  const [dialog, confirm] = useConfirm();
+  const [editing, setEditing] = useState(false);
+  const watcher = useJobWatcher([game.id]);
+  const [c0, c1] = palette(game.name, game.platform);
+  const ambiguous = game.links.filter((l) => l.status === "ambiguous" && l.candidates.length > 0);
+  const enriching = enrichPoll(game) !== false;
+
+  const move = (status: Status) => {
+    const patch: { status: Status; finished_at?: string } = { status };
+    if (status === "done" && !game.finished_at) patch.finished_at = todayIso();
+    update.mutate(patch, {
+      onSuccess: () => toast.show(`${game.name}: ${STATUS1[status].toLowerCase()}.`, "ok"),
+      onError: (e) => toast.error(`Não consegui mover: ${errorMessage(e)}`),
+    });
+  };
+
+  const remove = async () => {
+    const ok = await confirm({
+      title: "Excluir jogo",
+      message: (
+        <>
+          <strong>{game.name}</strong> ({game.platform}) sai da biblioteca junto com review, comentários e mídia. Os backups
+          diários continuam com ele.
+        </>
+      ),
+      confirmLabel: "Excluir",
+      danger: true,
+    });
+    if (!ok) return;
+    del.mutate(game.id, {
+      onSuccess: () => {
+        toast.show(`${game.name} foi excluído.`);
+        navigate("/biblioteca");
+      },
+      onError: (e) => toast.error(errorMessage(e)),
+    });
+  };
+
+  return (
+    <div style={{ "--c0": c0, "--c1": c1 } as CSSProperties}>
+      <Hero game={game} onMove={move} busy={update.isPending} />
+      <div className={styles.body}>
+        <div className={styles.mainCol}>
+          {enriching && (
+            <p className="muted" role="status" style={{ margin: 0 }}>
+              Buscando capa, descrição, HLTB e Metacritic nas integrações…
+            </p>
+          )}
+          <MatchReview game={game} links={ambiguous} watcher={watcher} />
+          <section aria-labelledby="h-desc" className="card" style={{ gap: 12 }}>
+            <h2 id="h-desc" className="section-title">
+              Descrição
+            </h2>
+            <p className={`${styles.desc} ${game.description ? "" : styles.descEmpty}`}>
+              {game.description || "Sem descrição ainda. Ao importar pela integração, a sinopse oficial aparece aqui."}
+            </p>
+          </section>
+          <MediaSection game={game} />
+          <ReviewSection game={game} />
+          <CommentsSection game={game} />
+          {(game.story_summary || game.storyline) && (
+            <details className={styles.fold}>
+              <summary>Resumo da história (spoilers){game.story_summary ? "" : " (IGDB)"}</summary>
+              <p className={styles.story}>{game.story_summary || game.storyline}</p>
+            </details>
+          )}
+          <StoreReviewsSection game={game} watcher={watcher} />
+        </div>
+        <aside aria-label="Resumo do jogo" className={styles.aside}>
+          <ScoresCard game={game} />
+          <WhereCard game={game} devices={devices} />
+          <InfoCard game={game} onEdit={() => setEditing(true)} onDelete={remove} />
+        </aside>
+      </div>
+      <p className={styles.footerNote}>
+        Dados: <a href="https://www.igdb.com" target="_blank" rel="noopener noreferrer">IGDB</a> ·{" "}
+        <a href="https://rawg.io" target="_blank" rel="noopener noreferrer">RAWG</a> ·{" "}
+        <a href="https://howlongtobeat.com" target="_blank" rel="noopener noreferrer">HowLongToBeat</a> ·{" "}
+        <a href="https://www.metacritic.com" target="_blank" rel="noopener noreferrer">Metacritic</a>
+      </p>
+      <EditGameDialog game={game} open={editing} onClose={() => setEditing(false)} />
+      {dialog}
+    </div>
+  );
+}

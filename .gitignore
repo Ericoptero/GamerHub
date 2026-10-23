@@ -1,0 +1,21 @@
+# dados locais (banco, mídia em cache, backups)
+/data/
+.env
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+backend/static/
+
+# node
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# editores / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

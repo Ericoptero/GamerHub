@@ -1,0 +1,123 @@
+.cover {
+  position: relative;
+  display: block;
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--c0);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.hero {
+  flex: 0 0 170px;
+  width: 170px;
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 18px 40px rgba(0, 0, 0, 0.6);
+}
+
+.initials {
+  position: absolute;
+  right: -6px;
+  bottom: 18px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 96px;
+  line-height: 0.8;
+  color: rgba(255, 255, 255, 0.08);
+}
+
+.hero .initials {
+  display: none;
+}
+
+.band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4px;
+  background: var(--c1);
+}
+
+.platform {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.name {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 34px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+  line-height: 1.02;
+  text-transform: uppercase;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+
+.hero .name {
+  left: 12px;
+  right: 12px;
+  bottom: 14px;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  background: rgba(8, 10, 14, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* Em capas estreitas (3 colunas no celular) o tempo encolhe com reticências e o MC fica inteiro. */
+.footerLeft {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.footerRight {
+  flex: none;
+}
+
+@media (max-width: 640px) {
+  .hero {
+    flex-basis: 120px;
+    width: 120px;
+  }
+
+  .hero .name {
+    font-size: 17px;
+  }
+}

@@ -1,0 +1,152 @@
+{
+ "components": [
+  {
+   "meta": {
+    "componentName": "product",
+    "componentDisplayName": "Product",
+    "componentType": "Product"
+   },
+   "data": {
+    "item": {
+     "id": 1300450663,
+     "title": "Hollow Knight",
+     "slug": "hollow-knight",
+     "premiereYear": 2018,
+     "releaseDate": "2018-06-12",
+     "criticScoreSummary": {
+      "url": "/game/hollow-knight/critic-reviews/",
+      "max": 100,
+      "score": 90,
+      "normalizedScore": 89.9268,
+      "reviewCount": 30,
+      "positiveCount": 28,
+      "neutralCount": 0,
+      "negativeCount": 0,
+      "sentiment": "Universal acclaim"
+     },
+     "platforms": [
+      {
+       "name": "PC",
+       "slug": "pc",
+       "isLeadPlatform": false,
+       "releaseDate": "2017-02-24",
+       "criticScoreSummary": {
+        "url": "/game/hollow-knight/critic-reviews/?platform=pc",
+        "max": 100,
+        "score": 87,
+        "normalizedScore": 87.0256,
+        "reviewCount": 27,
+        "positiveCount": 26,
+        "neutralCount": 1,
+        "negativeCount": 0,
+        "sentiment": "Generally favorable"
+       }
+      },
+      {
+       "name": "Wii U",
+       "slug": "wii-u",
+       "isLeadPlatform": false,
+       "releaseDate": null,
+       "criticScoreSummary": {
+        "url": "/game/hollow-knight/critic-reviews/?platform=wii-u",
+        "max": 100,
+        "score": null,
+        "normalizedScore": null,
+        "reviewCount": null,
+        "positiveCount": null,
+        "neutralCount": null,
+        "negativeCount": null,
+        "sentiment": null
+       }
+      },
+      {
+       "name": "Nintendo Switch",
+       "slug": "nintendo-switch",
+       "isLeadPlatform": true,
+       "releaseDate": "2018-06-12",
+       "criticScoreSummary": {
+        "url": "/game/hollow-knight/critic-reviews/?platform=nintendo-switch",
+        "max": 100,
+        "score": 90,
+        "normalizedScore": 89.9268,
+        "reviewCount": 30,
+        "positiveCount": 28,
+        "neutralCount": 0,
+        "negativeCount": 0,
+        "sentiment": "Universal acclaim"
+       }
+      },
+      {
+       "name": "PlayStation 4",
+       "slug": "playstation-4",
+       "isLeadPlatform": false,
+       "releaseDate": "2019-06-28",
+       "criticScoreSummary": {
+        "url": "/game/hollow-knight/critic-reviews/?platform=playstation-4",
+        "max": 100,
+        "score": null,
+        "normalizedScore": null,
+        "reviewCount": null,
+        "positiveCount": null,
+        "neutralCount": null,
+        "negativeCount": null,
+        "sentiment": null
+       }
+      },
+      {
+       "name": "Xbox One",
+       "slug": "xbox-one",
+       "isLeadPlatform": false,
+       "releaseDate": null,
+       "criticScoreSummary": {
+        "url": "/game/hollow-knight/critic-reviews/?platform=xbox-one",
+        "max": 100,
+        "score": null,
+        "normalizedScore": null,
+        "reviewCount": 1,
+        "positiveCount": 1,
+        "neutralCount": 0,
+        "negativeCount": 0,
+        "sentiment": null
+       }
+      },
+      {
+       "name": "PlayStation 5",
+       "slug": "playstation-5",
+       "isLeadPlatform": false,
+       "releaseDate": null,
+       "criticScoreSummary": {
+        "url": "/game/hollow-knight/critic-reviews/?platform=playstation-5",
+        "max": 100,
+        "score": null,
+        "normalizedScore": null,
+        "reviewCount": null,
+        "positiveCount": null,
+        "neutralCount": null,
+        "negativeCount": null,
+        "sentiment": null
+       }
+      },
+      {
+       "name": "Nintendo Switch 2",
+       "slug": "nintendo-switch-2",
+       "isLeadPlatform": false,
+       "releaseDate": "2026-02-05",
+       "criticScoreSummary": {
+        "url": "/game/hollow-knight/critic-reviews/?platform=nintendo-switch-2",
+        "max": 100,
+        "score": null,
+        "normalizedScore": null,
+        "reviewCount": null,
+        "positiveCount": null,
+        "neutralCount": null,
+        "negativeCount": null,
+        "sentiment": null
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

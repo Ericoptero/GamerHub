@@ -1,0 +1,50 @@
+/* Tokens copiados do protótipo (docs/prototype/Main.dc.html). */
+:root {
+  color-scheme: dark;
+
+  --bg: #0b0e14;
+  --bg-header: #0e121a;
+  --bg-sidebar: #10141c;
+  --bg-card: #121722;
+  --bg-raised: #151b26;
+  --bg-inset: #0e131c;
+  --bg-chip: #1c2433;
+  --bg-button: #161d2a;
+  --overlay: rgba(8, 10, 14, 0.6);
+
+  --border: #1b2230;
+  --border-input: #222b3a;
+  --border-strong: #263044;
+
+  --text: #e6eaf2;
+  --text-2: #d5dbe6;
+  --text-3: #c7cedb;
+  --text-4: #a9b1c1;
+  --muted: #8b94a7;
+  --on-accent: #0b0e14;
+
+  --accent: #5aa8ff;
+  --danger: #ff8a8a;
+  --ok: #5cd68a;
+  --warn: #ffc857;
+
+  --st-backlog: #5aa8ff;
+  --st-playing: #9be15d;
+  --st-done: #c792ff;
+  --st-dropped: #ff8a8a;
+  --st-hype: #ffb454;
+
+  --prio-alta: #ffb454;
+  --prio-media: #5aa8ff;
+
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-body: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --cover-size: 150px;
+  --tap: 44px;
+}

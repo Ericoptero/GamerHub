@@ -1,0 +1,14 @@
+[
+ {"id": 14593, "name": "Hollow Knight", "alternative_names": [{"id": 1, "name": "HK"}],
+  "summary": "Forge your own path in Hollow Knight! An epic action adventure through a vast ruined kingdom of insects and heroes.",
+  "storyline": "Beneath the fading town of Dirtmouth sleeps a vast, ancient kingdom.",
+  "first_release_date": 1487894400, "url": "https://www.igdb.com/games/hollow-knight",
+  "cover": {"id": 9, "image_id": "co93cr"},
+  "artworks": [{"id": 1, "image_id": "ar5l8"}],
+  "screenshots": [{"id": 1, "image_id": "sc6ex1"}, {"id": 2, "image_id": "sc6ex2"}],
+  "videos": [{"id": 1, "name": "Gameplay", "video_id": "AAAAAAAAAAA"}, {"id": 2, "name": "Launch Trailer", "video_id": "UAO2urG23S4"}],
+  "genres": [{"id": 8, "name": "Platform"}, {"id": 31, "name": "Adventure"}],
+  "themes": [{"id": 1, "name": "Action"}],
+  "aggregated_rating": 88.7, "aggregated_rating_count": 21,
+  "involved_companies": [{"id": 1, "company": {"id": 1, "name": "Team Cherry"}, "developer": true, "publisher": true}]}
+]

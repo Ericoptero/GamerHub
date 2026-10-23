@@ -1,0 +1,109 @@
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--tap);
+  padding: 0 4px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-accent);
+}
+
+.brandText {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-right: auto;
+}
+
+.navItem {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-4);
+  text-decoration: none;
+}
+
+.navItem:hover {
+  color: var(--text);
+}
+
+.navOn {
+  background: var(--bg-chip);
+  color: #fff;
+}
+
+.add {
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .nav {
+    order: 3;
+    width: 100%;
+    margin-right: 0;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .brand {
+    margin-right: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .addText {
+    display: none;
+  }
+
+  .add {
+    width: var(--tap);
+    padding: 0;
+  }
+}

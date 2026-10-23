@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Portal de Backlog</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #0B0E14; color: #E6EAF2; font-family: Inter, system-ui, sans-serif; font-size: 14px; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 20px; background: #0E121A; border-bottom: 1px solid #1B2230">
+<button type="button" onClick="{{goLib}}" aria-label="Início" style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 4px; border: 0; background: transparent; color: #E6EAF2; cursor: pointer; font-family: inherit">
+<span style="width: 34px; height: 34px; border-radius: 9px; background: {{accent}}; display: flex; align-items: center; justify-content: center; color: #0B0E14">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"></path><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6l-.7 6.3A3 3 0 0 0 7 17.3l1.6-1.8a2 2 0 0 1 1.5-.7h3.8a2 2 0 0 1 1.5.7l1.6 1.8a3 3 0 0 0 5-2.4l-.7-6.3A4 4 0 0 0 17.3 5z"></path></svg>
+</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 24px; letter-spacing: 1px; text-transform: uppercase">Backlog</span>
+</button>
+<nav aria-label="Principal" style="display: flex; flex-wrap: wrap; gap: 4px; margin-right: auto">
+<button type="button" onClick="{{goLib}}" aria-current="{{navLibCur}}" style="{{navLib}}">Biblioteca</button>
+<button type="button" onClick="{{goDev}}" aria-current="{{navDevCur}}" style="{{navDev}}">Meus consoles</button>
+</nav>
+<button type="button" onClick="{{goAdd}}" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 0; background: {{accent}}; color: #0B0E14; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+Adicionar jogo
+</button>
+</header>
+
+<sc-if value="{{loading}}" hint-placeholder-val="{{ false }}">
+<p style="color: #8B94A7; margin: 40px 24px">Carregando sua biblioteca…</p>
+</sc-if>
+
+<sc-if value="{{isLib}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-wrap: wrap; align-items: stretch; flex: 1">
+<aside aria-label="Filtros da biblioteca" style="flex: 1 1 220px; max-width: 100%; background: #10141C; border-right: 1px solid #1B2230; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="padding: 0 10px; color: #8B94A7; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px">Listas</span>
+<div style="display: flex; flex-wrap: wrap; gap: 2px">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+<button type="button" onClick="{{t.go}}" aria-current="{{t.current}}" style="{{t.style}}">
+<span style="{{t.dot}}" aria-hidden="true"></span>
+<span style="flex: 1; text-align: left">{{t.label}}</span>
+<span style="font-size: 12px; color: #8B94A7">{{t.count}}</span>
+</button>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="padding: 0 10px; color: #8B94A7; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px">Jogável em</span>
+<div style="display: flex; flex-wrap: wrap; gap: 2px">
+<sc-for list="{{devNav}}" as="dn" hint-placeholder-count="5">
+<button type="button" onClick="{{dn.go}}" aria-pressed="{{dn.on}}" style="{{dn.style}}">
+<span style="flex: 1; text-align: left">{{dn.label}}</span>
+<span style="font-size: 12px; color: #8B94A7">{{dn.count}}</span>
+</button>
+</sc-for>
+</div>
+</div>
+<div style="margin-top: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<div style="background: #151B26; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700">{{stats.hours}}</span>
+<span style="color: #8B94A7; font-size: 11px">na fila (HLTB)</span>
+</div>
+<div style="background: #151B26; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700">{{stats.played}}</span>
+<span style="color: #8B94A7; font-size: 11px">jogadas</span>
+</div>
+<div style="background: #151B26; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700">{{stats.high}}</span>
+<span style="color: #8B94A7; font-size: 11px">prioridade alta</span>
+</div>
+<div style="background: #151B26; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700">{{stats.avg}}</span>
+<span style="color: #8B94A7; font-size: 11px">nota média</span>
+</div>
+</div>
+</aside>
+
+<main style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #1B2230">
+<div style="display: flex; flex-direction: column; gap: 2px; margin-right: auto">
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 28px; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1">{{tabLabel}}</h1>
+<span style="color: #8B94A7; font-size: 12px">{{shown}} jogos{{filterNote}}</span>
+</div>
+<div style="position: relative; flex: 1 1 200px; max-width: 320px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B94A7" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="position: absolute; left: 12px; top: 14px"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<input type="search" aria-label="Buscar jogo" placeholder="Buscar na biblioteca" value="{{q}}" onChange="{{setQ}}" style="width: 100%; height: 44px; padding: 0 12px 0 36px; border-radius: 8px; border: 1px solid #222B3A; background: #151B26; color: #E6EAF2; font-family: inherit; font-size: 14px; box-sizing: border-box">
+</div>
+<label style="display: flex; align-items: center; gap: 8px; color: #8B94A7; font-size: 12px">Plataforma
+<select value="{{plat}}" onChange="{{setPlat}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #222B3A; background: #151B26; color: #E6EAF2; font-family: inherit; font-size: 14px">
+<option value="">Todas</option>
+<sc-for list="{{platOpts}}" as="po" hint-placeholder-count="4"><option value="{{po}}">{{po}}</option></sc-for>
+</select>
+</label>
+<label style="display: flex; align-items: center; gap: 8px; color: #8B94A7; font-size: 12px">Ordenar
+<select value="{{sort}}" onChange="{{setSort}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #222B3A; background: #151B26; color: #E6EAF2; font-family: inherit; font-size: 14px">
+<option value="prio">Prioridade</option>
+<option value="short">Mais curtos (HLTB)</option>
+<option value="name">Nome</option>
+<option value="score">Sua nota</option>
+<option value="mc">Metacritic</option>
+<option value="date">Mais recentes</option>
+</select>
+</label>
+</div>
+<sc-if value="{{isBacklog}}" hint-placeholder-val="{{ true }}">
+<div role="group" aria-label="Prioridade" style="display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 20px 0">
+<sc-for list="{{prios}}" as="pp" hint-placeholder-count="4">
+<button type="button" onClick="{{pp.go}}" aria-pressed="{{pp.on}}" style="{{pp.style}}">{{pp.label}}</button>
+</sc-for>
+</div>
+</sc-if>
+<div style="padding: 20px 20px 48px">
+<sc-if value="{{empty}}" hint-placeholder-val="{{ false }}">
+<div style="border: 1px dashed #222B3A; border-radius: 12px; padding: 40px; text-align: center; color: #8B94A7">Nenhum jogo com esses filtros.</div>
+</sc-if>
+<div style="{{gridStyle}}">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="12">
+<button type="button" onClick="{{c.pick}}" aria-label="Abrir {{c.n}}" style="display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; font-family: inherit">
+<span style="{{c.coverStyle}}">
+<span style="position: absolute; right: -6px; bottom: 18px; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 96px; line-height: 0.8; color: rgba(255,255,255,0.08)" aria-hidden="true">{{c.initials}}</span>
+<span style="{{c.bandStyle}}"></span>
+<span style="position: absolute; top: 10px; left: 10px; font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(255,255,255,0.85)">{{c.p}}</span>
+<span style="position: absolute; left: 10px; right: 10px; bottom: 34px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 19px; line-height: 1.02; text-transform: uppercase; color: #FFFFFF">{{c.n}}</span>
+<sc-if value="{{c.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{c.img}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover"></sc-if>
+<span style="position: absolute; left: 0; right: 0; bottom: 0; height: 28px; background: rgba(8,10,14,0.75); display: flex; align-items: center; justify-content: space-between; padding: 0 8px; font-size: 11px; font-weight: 600; color: #D5DBE6">
+<span>{{c.timeLabel}}</span>
+<span style="{{c.mcStyle}}">{{c.mc}}</span>
+</span>
+</span>
+<span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+<sc-if value="{{c.hasPrio}}" hint-placeholder-val="{{ true }}"><span style="{{c.prioDot}}" aria-hidden="true"></span></sc-if>
+<span style="font-size: 13px; font-weight: 600; color: #E6EAF2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{c.n}}</span>
+</span>
+</button>
+</sc-for>
+</div>
+</div>
+</main>
+</div>
+</sc-if>
+
+<sc-if value="{{isDetail}}" hint-placeholder-val="{{ false }}">
+<div>
+<section aria-label="Cabeçalho do jogo" style="{{det.heroStyle}}">
+<span style="position: absolute; right: -20px; top: -30px; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 360px; line-height: 0.85; color: rgba(255,255,255,0.06)" aria-hidden="true">{{det.initials}}</span>
+<sc-if value="{{det.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{det.img}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.35"></sc-if>
+<span style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,14,20,0.1) 0%, rgba(11,14,20,0.55) 55%, #0B0E14 100%)" aria-hidden="true"></span>
+<div style="position: relative; max-width: 1280px; margin: 0 auto; padding: 20px 20px 28px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+<button type="button" onClick="{{goLib}}" style="align-self: flex-start; height: 40px; padding: 0 12px 0 8px; border-radius: 8px; border: 0; background: rgba(8,10,14,0.55); color: #E6EAF2; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+Biblioteca
+</button>
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end">
+<span style="{{det.coverStyle}}">
+<span style="position: absolute; top: 10px; left: 10px; font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(255,255,255,0.85)">{{det.p}}</span>
+<span style="position: absolute; left: 12px; right: 12px; bottom: 14px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; line-height: 1; text-transform: uppercase; color: #FFFFFF">{{det.n}}</span>
+<sc-if value="{{det.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{det.img}}" alt="Capa de {{det.n}}" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover"></sc-if>
+</span>
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<span style="{{det.statusChip}}">{{det.statusLabel}}</span>
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 52px; line-height: 0.92; text-transform: uppercase">{{det.n}}</h1>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{det.tags}}" as="tg" hint-placeholder-count="3">
+<span style="font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 6px; background: rgba(8,10,14,0.6); color: #D5DBE6">{{tg}}</span>
+</sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px">
+<sc-for list="{{det.moves}}" as="m" hint-placeholder-count="3">
+<button type="button" onClick="{{m.go}}" style="{{m.style}}">{{m.label}}</button>
+</sc-for>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<div style="max-width: 1280px; margin: 0 auto; padding: 8px 20px 64px; box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+
+<section aria-labelledby="h-desc" style="background: #121722; border: 1px solid #1B2230; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h2 id="h-desc" style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: 0.4px">Descrição</h2>
+<p style="{{det.descStyle}}">{{det.desc}}</p>
+</section>
+
+<section aria-labelledby="h-media" style="background: #121722; border: 1px solid #1B2230; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<h2 id="h-media" style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: 0.4px">Vídeo e imagens</h2>
+<div style="{{det.videoStyle}}">
+<span style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,10,14,0) 40%, rgba(8,10,14,0.7) 100%)" aria-hidden="true"></span>
+<sc-if value="{{det.hasVideo}}" hint-placeholder-val="{{ false }}">
+<a href="{{det.video}}" target="_blank" rel="noopener" style="position: relative; width: 72px; height: 72px; border-radius: 50%; background: {{accent}}; color: #0B0E14; display: flex; align-items: center; justify-content: center" aria-label="Assistir trailer">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"></path></svg>
+</a>
+</sc-if>
+<sc-if value="{{det.noVideo}}" hint-placeholder-val="{{ true }}">
+<span style="position: relative; width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.14); color: #FFFFFF; display: flex; align-items: center; justify-content: center" aria-hidden="true">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"></path></svg>
+</span>
+</sc-if>
+<span style="position: absolute; left: 16px; bottom: 14px; font-size: 13px; font-weight: 600; color: #E6EAF2">{{det.videoLabel}}</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px">
+<sc-for list="{{det.shots}}" as="sh" hint-placeholder-count="4">
+<span style="{{sh.style}}">
+<sc-if value="{{sh.hasUrl}}" hint-placeholder-val="{{ false }}"><img src="{{sh.url}}" alt="Screenshot {{sh.i}}" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover"></sc-if>
+<span style="position: relative; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.75)">{{sh.label}}</span>
+</span>
+</sc-for>
+</div>
+</section>
+
+<section aria-labelledby="h-rv" style="background: #121722; border: 1px solid {{accent}}; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap">
+<h2 id="h-rv" style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: 0.4px">Sua review</h2>
+<span style="color: #8B94A7; font-size: 12px">{{rv.note}}</span>
+</div>
+<div role="group" aria-label="Sua nota de 1 a 10" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{rv.scores}}" as="sc" hint-placeholder-count="10">
+<button type="button" onClick="{{sc.go}}" aria-pressed="{{sc.on}}" style="{{sc.style}}">{{sc.label}}</button>
+</sc-for>
+</div>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">O que você achou
+<textarea value="{{rv.text}}" onChange="{{rv.setText}}" rows="6" placeholder="Escreva sua review: o que funcionou, o que incomodou, para quem você recomendaria." style="padding: 12px; border-radius: 10px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px; line-height: 1.6; resize: vertical"></textarea>
+</label>
+<div style="display: flex; justify-content: flex-end">
+<button type="button" onClick="{{rv.save}}" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 0; background: {{accent}}; color: #0B0E14; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer">Salvar review</button>
+</div>
+</section>
+
+<section aria-labelledby="h-cm" style="background: #121722; border: 1px solid #1B2230; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<h2 id="h-cm" style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: 0.4px">Comentários <span style="color: #8B94A7; font-family: Inter, sans-serif; font-size: 13px; font-weight: 500; text-transform: none">{{det.cmCount}}</span></h2>
+<form onSubmit="{{addCm}}" style="display: flex; flex-wrap: wrap; gap: 8px">
+<label style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Nova anotação
+<input value="{{cm}}" onChange="{{setCm}}" placeholder="Ex.: parei no capítulo 6, voltar pelo save do farol" style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+</label>
+<button type="submit" style="align-self: flex-end; height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #263044; background: #161D2A; color: #E6EAF2; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer">Comentar</button>
+</form>
+<sc-if value="{{det.noCm}}" hint-placeholder-val="{{ false }}">
+<p style="margin: 0; color: #8B94A7; font-size: 13px">Nenhum comentário ainda. Use para anotar progresso, dicas ou impressões ao longo da jogatina.</p>
+</sc-if>
+<sc-for list="{{det.comments}}" as="co" hint-placeholder-count="2">
+<div style="display: flex; gap: 12px; padding-top: 12px; border-top: 1px solid #1B2230">
+<span style="flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: {{accent}}" aria-hidden="true"></span>
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+<span style="color: #8B94A7; font-size: 12px">{{co.d}}</span>
+<p style="margin: 0; color: #D5DBE6; font-size: 14px; line-height: 1.55; white-space: pre-line">{{co.t}}</p>
+</div>
+</div>
+</sc-for>
+</section>
+
+<sc-if value="{{det.hasStory}}" hint-placeholder-val="{{ false }}">
+<details style="background: #121722; border: 1px solid #1B2230; border-radius: 14px; padding: 16px 20px">
+<summary style="cursor: pointer; font-weight: 600; font-size: 14px">Resumo da história (spoilers)</summary>
+<p style="margin: 12px 0 0; color: #C7CEDB; font-size: 14px; line-height: 1.65">{{det.h}}</p>
+</details>
+</sc-if>
+
+<details style="border: 1px solid #1B2230; border-radius: 14px; padding: 14px 20px">
+<summary style="cursor: pointer; font-size: 13px; color: #8B94A7; font-weight: 600">Reviews das lojas e da crítica <span style="font-weight: 500">· {{det.storeCount}}</span></summary>
+<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px">
+<sc-for list="{{det.storeReviews}}" as="r" hint-placeholder-count="2">
+<div style="display: flex; flex-direction: column; gap: 4px; font-size: 13px">
+<div style="display: flex; justify-content: space-between; gap: 8px; color: #8B94A7"><span>{{r.src}}</span><span>{{r.score}}</span></div>
+<p style="margin: 0; color: #A9B1C1; line-height: 1.5">{{r.text}}</p>
+</div>
+</sc-for>
+<sc-if value="{{det.noStore}}" hint-placeholder-val="{{ true }}">
+<p style="margin: 0; color: #8B94A7; font-size: 13px; line-height: 1.5">{{msg}}</p>
+</sc-if>
+<button type="button" onClick="{{importData}}" style="align-self: flex-start; height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #263044; background: transparent; color: #C7CEDB; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer">Atualizar pela integração</button>
+</div>
+</details>
+</div>
+
+<aside aria-label="Resumo do jogo" style="flex: 1 1 300px; max-width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+<section aria-labelledby="h-notas" style="background: #121722; border: 1px solid #1B2230; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<h2 id="h-notas" style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 20px; text-transform: uppercase; letter-spacing: 0.4px">Notas e tempo</h2>
+<div style="display: flex; gap: 16px; align-items: center">
+<div style="position: relative; width: 72px; height: 72px; flex: none">
+<svg width="72" height="72" viewBox="0 0 64 64" role="img" aria-label="Metacritic {{det.mc}}">
+<circle cx="32" cy="32" r="27" fill="none" stroke="#222B3A" stroke-width="6"></circle>
+<circle cx="32" cy="32" r="27" fill="none" stroke="{{det.ringColor}}" stroke-width="6" stroke-linecap="round" stroke-dasharray="{{det.ring}}" transform="rotate(-90 32 32)"></circle>
+</svg>
+<span style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 24px">{{det.mc}}</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="color: #8B94A7; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px">Metacritic</span>
+<span style="font-size: 14px; color: #C7CEDB">{{det.mcWord}}</span>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<div style="background: #0E131C; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 2px">
+<span style="color: #8B94A7; font-size: 11px">Sua nota</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 700">{{det.u}}</span>
+</div>
+<div style="background: #0E131C; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 2px">
+<span style="color: #8B94A7; font-size: 11px">HLTB</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 700">{{det.hl}}</span>
+</div>
+<div style="background: #0E131C; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 2px">
+<span style="color: #8B94A7; font-size: 11px">Seu tempo</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 700">{{det.t}}</span>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="h-onde" style="background: #121722; border: 1px solid #1B2230; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px">
+<h2 id="h-onde" style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 20px; text-transform: uppercase; letter-spacing: 0.4px">Onde jogar</h2>
+<button type="button" onClick="{{goDev}}" style="height: 36px; padding: 0 8px; border: 0; background: transparent; color: {{accent}}; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer">Gerenciar</button>
+</div>
+<sc-for list="{{det.where}}" as="w" hint-placeholder-count="2">
+<div style="display: flex; align-items: center; gap: 10px; background: #0E131C; border-radius: 10px; padding: 10px 12px">
+<span style="width: 32px; height: 32px; border-radius: 8px; background: #1C2433; display: flex; align-items: center; justify-content: center; color: #C7CEDB" aria-hidden="true">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="3"></rect><path d="M7 12h3M8.5 10.5v3M15 11h.01M17 13h.01"></path></svg>
+</span>
+<span style="display: flex; flex-direction: column; gap: 1px"><span style="font-weight: 600; font-size: 13px">{{w.name}}</span><span style="color: #8B94A7; font-size: 12px">{{w.kind}}</span></span>
+</div>
+</sc-for>
+<sc-if value="{{det.noWhere}}" hint-placeholder-val="{{ false }}">
+<p style="margin: 0; color: #8B94A7; font-size: 13px; line-height: 1.5">Nenhum aparelho seu roda {{det.p}}. Cadastre um em Meus consoles.</p>
+</sc-if>
+<sc-if value="{{det.hasStores}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center">
+<span style="color: #8B94A7; font-size: 12px">Lojas:</span>
+<sc-for list="{{det.stores}}" as="so" hint-placeholder-count="2"><span style="font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 6px; background: #1C2433; color: #D5DBE6">{{so}}</span></sc-for>
+</div>
+</sc-if>
+</section>
+
+<section aria-labelledby="h-info" style="background: #121722; border: 1px solid #1B2230; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h2 id="h-info" style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 20px; text-transform: uppercase; letter-spacing: 0.4px">Informações</h2>
+<dl style="margin: 0; display: grid; grid-template-columns: 96px minmax(0, 1fr); row-gap: 10px; column-gap: 12px; font-size: 13px">
+<dt style="color: #8B94A7">Plataforma</dt><dd style="margin: 0">{{det.p}}</dd>
+<dt style="color: #8B94A7">Gênero</dt><dd style="margin: 0">{{det.g}}</dd>
+<dt style="color: #8B94A7">Prioridade</dt><dd style="margin: 0">{{det.pr}}</dd>
+<dt style="color: #8B94A7">Finalizado em</dt><dd style="margin: 0">{{det.d}}</dd>
+<dt style="color: #8B94A7">Zerado</dt><dd style="margin: 0">{{det.z}}</dd>
+<dt style="color: #8B94A7">Origem</dt><dd style="margin: 0">{{det.src}}</dd>
+</dl>
+</section>
+</aside>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isAdd}}" hint-placeholder-val="{{ false }}">
+<div style="max-width: 920px; width: 100%; margin: 0 auto; padding: 28px 20px 64px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 40px; text-transform: uppercase; line-height: 1">Adicionar jogo</h1>
+<p style="margin: 0; color: #8B94A7; font-size: 14px">Busque numa integração para trazer capa, descrição, imagens, trailer, Metacritic e HLTB, ou cadastre à mão.</p>
+</div>
+<div role="tablist" aria-label="Forma de adicionar" style="display: flex; gap: 4px; background: #10141C; border: 1px solid #1B2230; border-radius: 10px; padding: 4px; align-self: flex-start; flex-wrap: wrap">
+<button type="button" role="tab" aria-selected="{{add.intOn}}" onClick="{{add.toInt}}" style="{{add.intTab}}">Buscar na integração</button>
+<button type="button" role="tab" aria-selected="{{add.manOn}}" onClick="{{add.toMan}}" style="{{add.manTab}}">Manual</button>
+</div>
+
+<sc-if value="{{add.intOn}}" hint-placeholder-val="{{ true }}">
+<section aria-label="Buscar na integração" style="background: #121722; border: 1px solid #1B2230; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end">
+<label style="flex: 0 1 200px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Fonte
+<select value="{{add.src}}" onChange="{{add.setSrc}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+<sc-for list="{{sources}}" as="sr" hint-placeholder-count="4"><option value="{{sr}}">{{sr}}</option></sc-for>
+</select>
+</label>
+<label style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Nome do jogo
+<input type="search" value="{{add.aq}}" onChange="{{add.setAq}}" placeholder="Ex.: Hollow Knight" style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+</label>
+</div>
+<sc-if value="{{add.hasResult}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="color: #8B94A7; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px">Resultados em {{add.src}}</span>
+<button type="button" onClick="{{add.pick}}" aria-pressed="{{add.picked}}" style="{{add.resultStyle}}">
+<span style="width: 48px; height: 72px; border-radius: 6px; background: #1E2A55; flex: none; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 20px; color: rgba(255,255,255,0.8)" aria-hidden="true">{{add.initials}}</span>
+<span style="display: flex; flex-direction: column; gap: 4px; text-align: left; flex: 1; min-width: 0">
+<span style="font-weight: 700; font-size: 15px">{{add.aq}}</span>
+<span style="color: #8B94A7; font-size: 12px">Metadados virão de {{add.src}}: capa, descrição, gênero, screenshots, trailer, Metacritic e HLTB</span>
+</span>
+<span style="font-size: 12px; font-weight: 700; color: {{accent}}">{{add.pickLabel}}</span>
+</button>
+<p style="margin: 0; color: #8B94A7; font-size: 12px">Protótipo: o resultado é simulado a partir do nome digitado.</p>
+</div>
+</sc-if>
+<sc-if value="{{add.picked}}" hint-placeholder-val="{{ false }}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; border-top: 1px solid #1B2230; padding-top: 16px">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Plataforma
+<select value="{{add.cfg.p}}" onChange="{{add.cf.p}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+<sc-for list="{{platforms}}" as="ap" hint-placeholder-count="4"><option value="{{ap}}">{{ap}}</option></sc-for>
+</select>
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Lista
+<select value="{{add.cfg.st}}" onChange="{{add.cf.st}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+<option value="backlog">Lista de espera</option><option value="playing">Jogando</option><option value="done">Finalizado</option><option value="dropped">Dropado</option><option value="hype">Hype</option>
+</select>
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Prioridade
+<select value="{{add.cfg.pr}}" onChange="{{add.cf.pr}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+<option value="Alta">Alta</option><option value="Media">Média</option><option value="Baixa">Baixa</option>
+</select>
+</label>
+</div>
+<p style="margin: 0; color: #C7CEDB; font-size: 13px">Jogável em: {{add.availInt}}</p>
+<div style="display: flex; justify-content: flex-end">
+<button type="button" onClick="{{add.saveInt}}" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 0; background: {{accent}}; color: #0B0E14; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer">Adicionar à biblioteca</button>
+</div>
+</sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{add.manOn}}" hint-placeholder-val="{{ false }}">
+<form aria-label="Cadastro manual" onSubmit="{{add.saveMan}}" style="background: #121722; border: 1px solid #1B2230; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Nome do jogo
+<input required value="{{form.n}}" onChange="{{f.n}}" style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+</label>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Plataforma
+<select value="{{form.p}}" onChange="{{f.p}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+<sc-for list="{{platforms}}" as="ap" hint-placeholder-count="4"><option value="{{ap}}">{{ap}}</option></sc-for>
+</select>
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Gênero
+<select value="{{form.g}}" onChange="{{f.g}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+<sc-for list="{{genres}}" as="ge" hint-placeholder-count="4"><option value="{{ge}}">{{ge}}</option></sc-for>
+</select>
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Lista
+<select value="{{form.st}}" onChange="{{f.st}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+<option value="backlog">Lista de espera</option><option value="playing">Jogando</option><option value="done">Finalizado</option><option value="dropped">Dropado</option><option value="hype">Hype</option>
+</select>
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Prioridade
+<select value="{{form.pr}}" onChange="{{f.pr}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+<option value="Alta">Alta</option><option value="Media">Média</option><option value="Baixa">Baixa</option>
+</select>
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">HLTB (horas)
+<input inputmode="decimal" value="{{form.hl}}" onChange="{{f.hl}}" style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Nota Metacritic
+<input inputmode="numeric" value="{{form.mc}}" onChange="{{f.mc}}" placeholder="0–100" style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+</label>
+</div>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Descrição
+<textarea value="{{form.desc}}" onChange="{{f.desc}}" rows="4" style="padding: 10px 12px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px; resize: vertical"></textarea>
+</label>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">URL da capa
+<input type="url" value="{{form.img}}" onChange="{{f.img}}" placeholder="https://…" style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">URL do trailer
+<input type="url" value="{{form.video}}" onChange="{{f.video}}" placeholder="https://youtube.com/…" style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+</label>
+</div>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Screenshots (uma URL por linha)
+<textarea value="{{form.shots}}" onChange="{{f.shots}}" rows="3" style="padding: 10px 12px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px; resize: vertical"></textarea>
+</label>
+<div style="display: flex; justify-content: flex-end; gap: 10px">
+<button type="button" onClick="{{goLib}}" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #222B3A; background: transparent; color: #E6EAF2; font-family: inherit; font-size: 14px; cursor: pointer">Cancelar</button>
+<button type="submit" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 0; background: {{accent}}; color: #0B0E14; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer">Salvar jogo</button>
+</div>
+</form>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{isDev}}" hint-placeholder-val="{{ false }}">
+<div style="max-width: 1180px; width: 100%; margin: 0 auto; padding: 28px 20px 64px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 40px; text-transform: uppercase; line-height: 1">Meus consoles</h1>
+<p style="margin: 0; color: #8B94A7; font-size: 14px">Plataforma é o sistema do jogo (GBA, PS1, PC). Aparelho é onde você joga (Steam Deck, Miyoo Mini Plus). Cada aparelho roda uma ou mais plataformas.</p>
+</div>
+
+<section aria-labelledby="h-aps" style="display: flex; flex-direction: column; gap: 14px">
+<h2 id="h-aps" style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 24px; text-transform: uppercase">Aparelhos <span style="color: #8B94A7; font-family: Inter, sans-serif; font-size: 13px; font-weight: 500; text-transform: none">{{devCount}}</span></h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px">
+<sc-for list="{{devCards}}" as="dc" hint-placeholder-count="4">
+<div style="background: #121722; border: 1px solid #1B2230; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="{{dc.iconStyle}}" aria-hidden="true">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="3"></rect><path d="M7 12h3M8.5 10.5v3M15 11h.01M17 13h.01"></path></svg>
+</span>
+<span style="display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0"><span style="font-weight: 700; font-size: 15px">{{dc.name}}</span><span style="color: #8B94A7; font-size: 12px">{{dc.kind}}</span></span>
+<button type="button" onClick="{{dc.remove}}" aria-label="Remover {{dc.name}}" style="width: 44px; height: 44px; border-radius: 8px; border: 0; background: transparent; color: #8B94A7; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{dc.plats}}" as="dp" hint-placeholder-count="3"><span style="font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 6px; background: #1C2433; color: #D5DBE6">{{dp}}</span></sc-for>
+</div>
+<span style="color: #C7CEDB; font-size: 13px; border-top: 1px solid #1B2230; padding-top: 10px">{{dc.playable}} jogos da fila jogáveis aqui</span>
+</div>
+</sc-for>
+</div>
+
+<form aria-label="Novo aparelho" onSubmit="{{addDev}}" style="background: #10141C; border: 1px dashed #263044; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px">
+<span style="font-weight: 700; font-size: 15px">Novo aparelho</span>
+<div style="display: flex; flex-wrap: wrap; gap: 12px">
+<label style="flex: 2 1 240px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Nome
+<input required value="{{nd.name}}" onChange="{{setNdName}}" placeholder="Ex.: Anbernic RG35XX" style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+</label>
+<label style="flex: 1 1 160px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Tipo
+<select value="{{nd.kind}}" onChange="{{setNdKind}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+<sc-for list="{{kinds}}" as="k" hint-placeholder-count="4"><option value="{{k}}">{{k}}</option></sc-for>
+</select>
+</label>
+</div>
+<div role="group" aria-label="Plataformas que ele roda" style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 12px; color: #C7CEDB">Plataformas que ele roda</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{ndToggles}}" as="nt" hint-placeholder-count="8">
+<button type="button" onClick="{{nt.go}}" aria-pressed="{{nt.on}}" style="{{nt.style}}">{{nt.label}}</button>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; justify-content: flex-end">
+<button type="submit" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 0; background: {{accent}}; color: #0B0E14; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer">Adicionar aparelho</button>
+</div>
+</form>
+</section>
+
+<section aria-labelledby="h-plats" style="background: #121722; border: 1px solid #1B2230; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<h2 id="h-plats" style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 24px; text-transform: uppercase">Plataformas <span style="color: #8B94A7; font-family: Inter, sans-serif; font-size: 13px; font-weight: 500; text-transform: none">{{platCount}}</span></h2>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{platChips}}" as="pc" hint-placeholder-count="10">
+<span style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 4px 0 12px; border-radius: 8px; background: #1C2433; font-size: 13px; font-weight: 600">
+{{pc.label}} <span style="color: #8B94A7; font-weight: 500">{{pc.count}}</span>
+<button type="button" onClick="{{pc.remove}}" aria-label="Remover {{pc.label}}" style="width: 32px; height: 32px; border-radius: 6px; border: 0; background: transparent; color: #8B94A7; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+</span>
+</sc-for>
+</div>
+<form onSubmit="{{addPlat}}" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end">
+<label style="flex: 0 1 280px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C7CEDB">Nova plataforma
+<input value="{{np}}" onChange="{{setNp}}" placeholder="Ex.: PC Engine" style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #222B3A; background: #0B0E14; color: #E6EAF2; font-family: inherit; font-size: 14px">
+</label>
+<button type="submit" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #263044; background: #161D2A; color: #E6EAF2; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer">Adicionar</button>
+</form>
+</section>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#5AA8FF","options":["#5AA8FF","#9BE15D","#FFB454","#C792FF"]},"coverSize":{"editor":"range","default":150,"min":110,"max":220,"step":10,"unit":"px"},"screen":{"editor":"enum","options":["library","detail","add","devices"],"default":"library"},"$preview":{"width":1440,"height":1400}}'>
+var DATA_URL = '/_blob/8aa967962a42cab44d6e899eb433ee4f';
+var GENRES = ['Ação (beat\'em up, hack\'n slash, luta)','Ação e aventura (Metroidvania, open world)','Aventura (Visual Novel, point and click)','Corrida','Estratégia (Tatics, tower defense, RTS)','Plataforma','Puzzles e Quebra cabeça','RPG','RPG de ação','Simulação (construção, esportes)','Sobrevivência e Sandbox','Terror','Tiro (FPS, TPS)'];
+var SOURCES = ['IGDB', 'Steam', 'RAWG', 'PlayStation Store', 'Nintendo eShop', 'GOG'];
+var KINDS = ['Console', 'Portátil', 'PC', 'Emulador / retro', 'Celular', 'Outro'];
+var STATUS = { backlog: 'Lista de espera', playing: 'Jogando', done: 'Finalizados', dropped: 'Dropados', hype: 'Hype' };
+var STATUS1 = { backlog: 'Na fila', playing: 'Jogando', done: 'Finalizado', dropped: 'Dropado', hype: 'Hype' };
+var STATUS_DOT = { backlog: '#5AA8FF', playing: '#9BE15D', done: '#C792FF', dropped: '#FF8A8A', hype: '#FFB454' };
+var COVERS = [['#1E2A55','#5AA8FF'],['#4A1F25','#FF8A8A'],['#16382F','#5CD6A4'],['#43301A','#FFB454'],['#2E1F4A','#C792FF'],['#14334A','#5BC9F5'],['#2A2F38','#AEB7C6'],['#45203C','#F28FC9']];
+var PRIO = { Alta: 0, Media: 1, Baixa: 2 };
+var SEED_DEVICES = [
+  { id: 'd1', name: 'PC', kind: 'PC', plats: ['PC'] },
+  { id: 'd2', name: 'Steam Deck', kind: 'Portátil', plats: ['PC'] },
+  { id: 'd3', name: 'Nintendo Switch', kind: 'Console', plats: ['Switch'] },
+  { id: 'd4', name: 'Nintendo 3DS', kind: 'Portátil', plats: ['3DS', 'NDS'] },
+  { id: 'd5', name: 'PS Vita', kind: 'Portátil', plats: ['PS Vita', 'PSP'] },
+  { id: 'd6', name: 'Miyoo Mini Plus', kind: 'Emulador / retro', plats: ['GB', 'GBC', 'GBA', 'NES', 'SNES', 'Master System', 'Mega Drive', 'PS1'] },
+  { id: 'd7', name: 'Retroid Pocket 5', kind: 'Emulador / retro', plats: ['GBA', 'NDS', 'PS1', 'PSP', 'SNES', 'N64', 'Gamecube', 'Mega Drive'] }
+];
+function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) | 0; } return Math.abs(h); }
+function initials(n) { var w = String(n || '?').replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/).filter(Boolean); return ((w[0] || '?')[0] + (w[1] ? w[1][0] : (w[0] || '')[1] || '')).toUpperCase(); }
+function hrs(x) { return x == null ? null : (Math.round(x * 10) / 10).toString().replace('.', ',') + 'h'; }
+function fmtDate(d) { if (!d) return '—'; var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d); return m ? m[3] + '/' + m[2] + '/' + m[1] : d; }
+function todayIso() { return new Date().toISOString().slice(0, 10); }
+function uniq(a) { return Array.from(new Set(a.filter(Boolean))); }
+function pill(on, accent) { return 'height: 36px; padding: 0 12px; border-radius: 999px; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; border: 1px solid ' + (on ? accent : '#263044') + '; background: ' + (on ? accent : 'transparent') + '; color: ' + (on ? '#0B0E14' : '#C7CEDB') + ';'; }
+function sideBtn(on, accent, h) { return 'flex: 1 1 180px; display: flex; align-items: center; gap: 10px; height: ' + h + 'px; padding: 0 10px; border-radius: 8px; border: 0; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: ' + (on ? 700 : 500) + '; background: ' + (on ? '#1C2433' : 'transparent') + '; color: ' + (on ? '#FFFFFF' : '#C7CEDB') + '; box-shadow: ' + (on ? 'inset 3px 0 0 ' + accent : 'none') + ';'; }
+function topBtn(on) { return 'height: 40px; padding: 0 14px; border-radius: 8px; border: 0; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 600; background: ' + (on ? '#1C2433' : 'transparent') + '; color: ' + (on ? '#FFFFFF' : '#A9B1C1') + ';'; }
+function segBtn(on) { return 'height: 40px; padding: 0 16px; border-radius: 8px; border: 0; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 600; background: ' + (on ? '#1C2433' : 'transparent') + '; color: ' + (on ? '#FFFFFF' : '#A9B1C1') + ';'; }
+
+class Component extends DCLogic {
+  componentDidMount() {
+    var self = this;
+    fetch(DATA_URL).then(function (r) { return r.json(); }).then(function (rows) {
+      self.setState({ games: rows.map(function (g, i) { return Object.assign({ id: 'g' + i, comments: [] }, g); }) });
+    }).catch(function () { self.setState({ games: [] }); });
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state || {};
+    var accent = this.props.accent ?? '#5AA8FF';
+    var coverSize = this.props.coverSize ?? 150;
+    var set = function (o) { self.setState(o); };
+    var screen = s.screen || this.props.screen || 'library';
+    var games = s.games || [];
+    var devices = s.devices || SEED_DEVICES;
+    var platforms = s.platforms || uniq(games.map(function (g) { return g.p; }).concat([].concat.apply([], devices.map(function (d) { return d.plats; })))).sort();
+    var go = function (sc, extra) { set(Object.assign({ screen: sc, msg: '' }, extra || {})); try { window.scrollTo(0, 0); } catch (e) {} };
+    var open = function (id) { go('detail', { sel: id, rv: null, cm: '' }); };
+    var devFor = function (g) { return devices.filter(function (d) { return d.plats.indexOf(g.p) >= 0; }); };
+    var pal = function (g) { return COVERS[hash((g.p || '') + g.n) % COVERS.length]; };
+    var mcColor = function (mc) { return mc == null ? '#8B94A7' : mc >= 75 ? '#5CD68A' : mc >= 50 ? '#FFC857' : '#FF8A8A'; };
+
+    /* ---------- biblioteca ---------- */
+    var tab = s.tab || 'backlog';
+    var q = (s.q || '').toLowerCase();
+    var plat = s.plat || '';
+    var dev = s.dev || '';
+    var pr = s.pr || '';
+    var sort = s.sort || (tab === 'backlog' ? 'prio' : 'date');
+    var inTab = games.filter(function (g) { return g.st === tab; });
+    var devObj = devices.find(function (d) { return d.id === dev; });
+    var list = inTab.filter(function (g) {
+      return (!q || g.n.toLowerCase().indexOf(q) >= 0) && (!plat || g.p === plat) && (!devObj || devObj.plats.indexOf(g.p) >= 0) && (tab !== 'backlog' || !pr || g.pr === pr);
+    });
+    var num = function (v, d) { return v == null ? d : v; };
+    var cmp = {
+      prio: function (a, b) { return num(PRIO[a.pr], 3) - num(PRIO[b.pr], 3) || a.n.localeCompare(b.n); },
+      short: function (a, b) { return num(a.hl || a.t, 1e9) - num(b.hl || b.t, 1e9); },
+      name: function (a, b) { return a.n.localeCompare(b.n); },
+      score: function (a, b) { return num(b.u, -1) - num(a.u, -1); },
+      mc: function (a, b) { return num(b.mc, -1) - num(a.mc, -1); },
+      date: function (a, b) { return String(b.d || '').localeCompare(String(a.d || '')) || a.n.localeCompare(b.n); }
+    }[sort];
+    list = list.slice().sort(cmp);
+
+    var cards = list.map(function (g) {
+      var c = pal(g);
+      var played = g.st === 'done' || g.st === 'dropped';
+      return {
+        n: g.n, p: g.p || 'Outro', initials: initials(g.n), img: g.img || '', hasImg: !!g.img,
+        mc: g.mc != null ? 'MC ' + g.mc : 'MC —', mcStyle: 'color: ' + mcColor(g.mc) + '; font-weight: 700;',
+        timeLabel: played ? (g.t ? hrs(g.t) + ' jogadas' : '—') : (g.hl ? hrs(g.hl) : 'HLTB —'),
+        hasPrio: g.st === 'backlog' && !!g.pr,
+        prioDot: 'width: 8px; height: 8px; border-radius: 50%; flex: none; ' + (g.pr === 'Alta' ? 'background: #FFB454;' : g.pr === 'Media' ? 'background: #5AA8FF;' : 'background: transparent; box-shadow: inset 0 0 0 1.5px #8B94A7;'),
+        coverStyle: 'position: relative; display: block; aspect-ratio: 2 / 3; border-radius: 8px; overflow: hidden; background: ' + c[0] + '; box-shadow: 0 6px 18px rgba(0,0,0,0.45);',
+        bandStyle: 'position: absolute; left: 0; right: 0; top: 0; height: 4px; background: ' + c[1] + ';',
+        pick: function () { open(g.id); }
+      };
+    });
+    var tabs = ['backlog', 'playing', 'done', 'dropped', 'hype'].map(function (k) {
+      var on = k === tab;
+      return { label: STATUS[k], count: games.filter(function (g) { return g.st === k; }).length, current: on ? 'page' : 'false',
+        dot: 'width: 8px; height: 8px; border-radius: 2px; background: ' + STATUS_DOT[k] + ';',
+        go: function () { set({ tab: k, sort: null, plat: '', dev: '' }); }, style: sideBtn(on, accent, 40) };
+    });
+    var devNav = [{ id: '', name: 'Todos os aparelhos' }].concat(devices).map(function (d) {
+      var on = dev === d.id;
+      var cnt = d.id ? inTab.filter(function (g) { return d.plats.indexOf(g.p) >= 0; }).length : inTab.length;
+      return { label: d.name, count: cnt, on: on, go: function () { set({ dev: d.id }); }, style: sideBtn(on, accent, 36) };
+    });
+    var prios = [['', 'Todas prioridades'], ['Alta', 'Alta'], ['Media', 'Média'], ['Baixa', 'Baixa']].map(function (x) {
+      var on = pr === x[0];
+      return { label: x[1], on: on, go: function () { set({ pr: x[0] }); }, style: pill(on, accent) };
+    });
+    var queue = games.filter(function (g) { return g.st === 'backlog'; });
+    var done = games.filter(function (g) { return g.st === 'done'; });
+    var scored = done.filter(function (g) { return g.u != null; });
+    var stats = {
+      high: queue.filter(function (g) { return g.pr === 'Alta'; }).length,
+      hours: Math.round(queue.reduce(function (a, g) { return a + (g.hl || 0); }, 0)).toLocaleString('pt-BR') + 'h',
+      played: Math.round(done.reduce(function (a, g) { return a + (g.t || 0); }, 0)).toLocaleString('pt-BR') + 'h',
+      avg: scored.length ? (scored.reduce(function (a, g) { return a + g.u; }, 0) / scored.length).toFixed(1).replace('.', ',') : '—'
+    };
+    var notes = [];
+    if (plat) notes.push(plat);
+    if (devObj) notes.push('jogável em ' + devObj.name);
+
+    /* ---------- detalhe ---------- */
+    var selG = games.find(function (g) { return g.id === s.sel; }) || (screen === 'detail' ? (games.find(function (g) { return g.n === 'Eastward'; }) || games[0]) : null);
+    var det = {}; var rv = {};
+    if (selG) {
+      var c = pal(selG);
+      var mc = selG.mc;
+      var stores = (selG.o || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+      var where = devFor(selG);
+      var shots = selG.shots && selG.shots.length ? selG.shots.map(function (u, i) { return { url: u, hasUrl: true, i: i + 1, label: '' }; }) : [1, 2, 3, 4].map(function (i) { return { url: '', hasUrl: false, i: i, label: 'Screenshot ' + i }; });
+      shots = shots.map(function (sh, i) { sh.style = 'position: relative; display: flex; align-items: flex-end; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; padding: 8px; box-sizing: border-box; background: ' + (i % 2 ? c[0] : '#1A2130') + '; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);'; return sh; });
+      var storeReviews = selG.reviews || [];
+      det = {
+        n: selG.n, p: selG.p || 'Outro', g: selG.g || 'Sem gênero', initials: initials(selG.n), img: selG.img || '', hasImg: !!selG.img,
+        tags: uniq([selG.p, (selG.g || '').replace(/\s*\(.*\)\s*/, ''), selG.pr ? 'Prioridade ' + (selG.pr === 'Media' ? 'média' : selG.pr.toLowerCase()) : '']),
+        statusLabel: STATUS1[selG.st],
+        statusChip: 'align-self: flex-start; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 5px 9px; border-radius: 6px; background: rgba(8,10,14,0.65); color: ' + STATUS_DOT[selG.st] + ';',
+        heroStyle: 'position: relative; overflow: hidden; background: ' + c[0] + '; box-shadow: inset 0 4px 0 ' + c[1] + ';',
+        coverStyle: 'position: relative; flex: 0 0 170px; aspect-ratio: 2 / 3; border-radius: 10px; overflow: hidden; background: ' + c[0] + '; box-shadow: 0 0 0 1px rgba(255,255,255,0.12), 0 18px 40px rgba(0,0,0,0.6);',
+        desc: selG.desc || 'Sem descrição ainda. Ao importar pela integração, a sinopse oficial aparece aqui.',
+        descStyle: 'margin: 0; font-size: 15px; line-height: 1.7; color: ' + (selG.desc ? '#D5DBE6' : '#8B94A7') + ';',
+        video: selG.video || '', hasVideo: !!selG.video, noVideo: !selG.video,
+        videoLabel: selG.video ? 'Trailer · abre em nova aba' : 'Trailer · importado pela integração',
+        videoStyle: 'position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: ' + c[0] + '; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);',
+        shots: shots,
+        moves: ['backlog', 'playing', 'done', 'dropped'].filter(function (k) { return k !== selG.st; }).map(function (k, i) {
+          return { label: (k === 'playing' ? 'Começar a jogar' : 'Mover para ' + STATUS1[k]),
+            style: i === 0 && k === 'playing' ? 'height: 44px; padding: 0 18px; border-radius: 8px; border: 0; background: ' + accent + '; color: #0B0E14; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer;' : 'height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(8,10,14,0.5); color: #E6EAF2; font-family: inherit; font-weight: 600; font-size: 13px; cursor: pointer;',
+            go: function () { set({ games: games.map(function (g) { return g.id === selG.id ? Object.assign({}, g, { st: k }) : g; }) }); } };
+        }),
+        comments: (selG.comments || []).slice().reverse().map(function (x) { return { t: x.t, d: fmtDate(x.d) }; }),
+        cmCount: (selG.comments || []).length || '', noCm: !(selG.comments || []).length,
+        hasStory: !!selG.h, h: selG.h || '',
+        storeReviews: storeReviews, storeCount: storeReviews.length ? storeReviews.length + ' importadas' : 'nenhuma importada', noStore: !storeReviews.length,
+        mc: mc != null ? mc : '—', ringColor: mcColor(mc), ring: (mc != null ? (mc / 100 * 169.6).toFixed(1) : 0) + ' 169.6',
+        mcWord: mc == null ? 'Sem nota ainda' : mc >= 75 ? 'Aclamado pela crítica' : mc >= 50 ? 'Recepção mista' : 'Recepção fraca',
+        u: selG.u != null ? selG.u : '—', hl: hrs(selG.hl) || '—', t: hrs(selG.t) || '—',
+        where: where.map(function (d) { return { name: d.name, kind: d.kind }; }), noWhere: !where.length,
+        stores: stores, hasStores: !!stores.length,
+        pr: selG.pr ? (selG.pr === 'Media' ? 'Média' : selG.pr) : '—', d: fmtDate(selG.d), z: selG.z ? selG.z + ' vezes' : (selG.st === 'done' ? '1 vez' : '—'),
+        src: selG.src ? 'Integração · ' + selG.src : 'Planilha / manual'
+      };
+      var draft = s.rv && s.rv.id === selG.id ? s.rv : { id: selG.id, score: selG.u, text: selG.c || '' };
+      rv = {
+        text: draft.text,
+        note: s.rvSaved === selG.id ? 'Review salva' : (selG.c || selG.u != null ? 'Você pode editar a qualquer momento' : 'Ainda sem review'),
+        setText: function (e) { set({ rv: Object.assign({}, draft, { text: e.target.value }), rvSaved: null }); },
+        scores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) {
+          var on = draft.score === n;
+          return { label: n, on: on, go: function () { set({ rv: Object.assign({}, draft, { score: n }), rvSaved: null }); },
+            style: 'width: 44px; height: 44px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 15px; font-weight: 700; border: 1px solid ' + (on ? accent : '#263044') + '; background: ' + (on ? accent : '#0E131C') + '; color: ' + (on ? '#0B0E14' : '#C7CEDB') + ';' };
+        }),
+        save: function () { set({ games: games.map(function (g) { return g.id === selG.id ? Object.assign({}, g, { u: draft.score, c: draft.text }) : g; }), rvSaved: selG.id }); }
+      };
+    }
+
+    /* ---------- adicionar ---------- */
+    var addMode = s.addMode || 'int';
+    var src = s.src || 'IGDB';
+    var aq = s.aq ?? (this.props.screen === 'add' ? 'Hollow Knight' : '');
+    var picked = !!aq.trim() && s.picked === aq;
+    var cfg = s.cfg || { p: 'PC', st: 'backlog', pr: 'Media' };
+    var cf = {};
+    ['p', 'st', 'pr'].forEach(function (k) { cf[k] = function (e) { var n = Object.assign({}, cfg); n[k] = e.target.value; set({ cfg: n }); }; });
+    var form = s.form || { n: '', p: 'PC', g: GENRES[1], st: 'backlog', pr: 'Media', hl: '', mc: '', img: '', video: '', desc: '', shots: '' };
+    var f = {};
+    ['n', 'p', 'g', 'st', 'pr', 'hl', 'mc', 'img', 'video', 'desc', 'shots'].forEach(function (k) {
+      f[k] = function (e) { var nf = Object.assign({}, self.state.form || form); nf[k] = e.target.value; self.setState({ form: nf }); };
+    });
+    var toNum = function (v) { var x = parseFloat(String(v).replace(',', '.')); return isNaN(x) ? undefined : x; };
+    var addGame = function (g) { g.id = 'n' + Date.now(); g.comments = []; set({ games: [g].concat(games), screen: 'detail', sel: g.id, form: null, picked: null, aq: '', rv: null, tab: g.st }); };
+    var availFor = function (p) { var ds = devices.filter(function (d) { return d.plats.indexOf(p) >= 0; }); return ds.length ? ds.map(function (d) { return d.name; }).join(', ') : 'nenhum aparelho cadastrado'; };
+    var add = {
+      intOn: addMode === 'int', manOn: addMode === 'man', intTab: segBtn(addMode === 'int'), manTab: segBtn(addMode === 'man'),
+      toInt: function () { set({ addMode: 'int' }); }, toMan: function () { set({ addMode: 'man' }); },
+      src: src, setSrc: function (e) { set({ src: e.target.value }); },
+      aq: aq, setAq: function (e) { set({ aq: e.target.value, picked: null }); },
+      hasResult: !!aq.trim(), initials: initials(aq), picked: picked, pickLabel: picked ? 'Selecionado' : 'Selecionar',
+      resultStyle: 'display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 10px; cursor: pointer; font-family: inherit; color: inherit; background: #0E131C; border: 1px solid ' + (picked ? accent : '#222B3A') + ';',
+      pick: function () { set({ picked: aq }); },
+      cfg: cfg, cf: cf, availInt: availFor(cfg.p),
+      saveInt: function () { addGame({ n: aq.trim(), p: cfg.p, st: cfg.st, pr: cfg.pr, src: src }); },
+      saveMan: function (e) {
+        if (e && e.preventDefault) e.preventDefault();
+        var fm = self.state.form || form;
+        if (!fm.n || !fm.n.trim()) return;
+        addGame({ n: fm.n.trim(), p: fm.p, g: fm.g, st: fm.st, pr: fm.pr, hl: toNum(fm.hl), mc: toNum(fm.mc), img: fm.img || undefined, video: fm.video || undefined, desc: fm.desc || undefined, shots: (fm.shots || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean) });
+      }
+    };
+
+    /* ---------- consoles ---------- */
+    var nd = s.nd || { name: '', kind: 'Portátil', plats: [] };
+    var devCards = devices.map(function (d) {
+      return { name: d.name, kind: d.kind, plats: d.plats,
+        playable: games.filter(function (g) { return g.st === 'backlog' && d.plats.indexOf(g.p) >= 0; }).length,
+        iconStyle: 'width: 40px; height: 40px; border-radius: 10px; background: #1C2433; color: ' + accent + '; display: flex; align-items: center; justify-content: center; flex: none;',
+        remove: function () { set({ devices: devices.filter(function (x) { return x.id !== d.id; }), dev: s.dev === d.id ? '' : s.dev }); } };
+    });
+    var ndToggles = platforms.map(function (p) {
+      var on = nd.plats.indexOf(p) >= 0;
+      return { label: p, on: on, style: pill(on, accent), go: function () { set({ nd: Object.assign({}, nd, { plats: on ? nd.plats.filter(function (x) { return x !== p; }) : nd.plats.concat([p]) }) }); } };
+    });
+    var platChips = platforms.map(function (p) {
+      return { label: p, count: games.filter(function (g) { return g.p === p; }).length, remove: function () { set({ platforms: platforms.filter(function (x) { return x !== p; }) }); } };
+    });
+
+    return {
+      accent: accent, loading: !s.games,
+      isLib: !!s.games && screen === 'library', isDetail: !!s.games && screen === 'detail' && !!selG, isAdd: screen === 'add', isDev: screen === 'devices',
+      navLib: topBtn(screen === 'library' || screen === 'detail'), navDev: topBtn(screen === 'devices'),
+      navLibCur: screen === 'library' ? 'page' : 'false', navDevCur: screen === 'devices' ? 'page' : 'false',
+      goLib: function () { go('library'); }, goDev: function () { go('devices'); }, goAdd: function () { go('add', { form: null }); },
+      tabs: tabs, devNav: devNav, prios: prios, stats: stats, cards: cards, shown: cards.length,
+      tabLabel: STATUS[tab], filterNote: notes.length ? ' · ' + notes.join(' · ') : '',
+      isBacklog: tab === 'backlog', q: s.q || '', plat: plat, sort: sort,
+      platOpts: uniq(inTab.map(function (g) { return g.p; })).sort(),
+      gridStyle: 'display: grid; grid-template-columns: repeat(auto-fill, minmax(' + coverSize + 'px, 1fr)); gap: 22px 16px;',
+      empty: !!s.games && cards.length === 0,
+      setQ: function (e) { set({ q: e.target.value }); }, setPlat: function (e) { set({ plat: e.target.value }); }, setSort: function (e) { set({ sort: e.target.value }); },
+      det: det, rv: rv,
+      cm: s.cm || '', setCm: function (e) { set({ cm: e.target.value }); },
+      addCm: function (e) {
+        if (e && e.preventDefault) e.preventDefault();
+        var t = (self.state.cm || '').trim(); if (!t || !selG) return;
+        set({ cm: '', games: games.map(function (g) { return g.id === selG.id ? Object.assign({}, g, { comments: (g.comments || []).concat([{ t: t, d: todayIso() }]) }) : g; }) });
+      },
+      msg: s.msg || 'Nenhuma review de loja importada. Elas ficam aqui, recolhidas, para não competir com a sua.',
+      importData: function () { set({ msg: 'A importação automática ainda não está conectada neste protótipo.' }); },
+      add: add, sources: SOURCES, platforms: platforms, genres: GENRES, form: form, f: f,
+      devCount: devices.length, devCards: devCards, kinds: KINDS, nd: nd, ndToggles: ndToggles,
+      setNdName: function (e) { set({ nd: Object.assign({}, nd, { name: e.target.value }) }); },
+      setNdKind: function (e) { set({ nd: Object.assign({}, nd, { kind: e.target.value }) }); },
+      addDev: function (e) {
+        if (e && e.preventDefault) e.preventDefault();
+        var cur = self.state.nd || nd; if (!cur.name || !cur.name.trim()) return;
+        set({ devices: devices.concat([{ id: 'd' + Date.now(), name: cur.name.trim(), kind: cur.kind, plats: cur.plats }]), nd: null });
+      },
+      platCount: platforms.length, platChips: platChips, np: s.np || '', setNp: function (e) { set({ np: e.target.value }); },
+      addPlat: function (e) {
+        if (e && e.preventDefault) e.preventDefault();
+        var v = (self.state.np || '').trim(); if (!v || platforms.indexOf(v) >= 0) return;
+        set({ platforms: platforms.concat([v]).sort(), np: '' });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

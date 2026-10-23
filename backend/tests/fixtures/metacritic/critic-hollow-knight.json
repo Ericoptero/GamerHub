@@ -1,0 +1,87 @@
+{
+ "data": {
+  "id": 1400509650,
+  "totalResults": 30,
+  "items": [
+   {
+    "quote": "Hollow Knight’s cryptic lore doled out in pieces leads me to believe I saved Hollownest in my ending, but an after-credits screen shows a 73% completion in 27 hours of play. I may have finished, but I’m far from done. I still have tons of upgrades, optional bosses, a true ending and a mantis to overcome. And I’m itching to jump back in.",
+    "score": 100,
+    "publicationName": "NintendoWorldReport",
+    "author": "",
+    "date": "2018-06-23",
+    "url": "http://www.nintendoworldreport.com/review/47609/hollow-knight-switch-review",
+    "platform": "Nintendo Switch"
+   },
+   {
+    "quote": "I fell in love with Hollow Knight from the moment I started up the game on Switch. It’s a beautiful, touching experience that has no trouble going toe-to-toe with even some of the biggest games on Switch. Aussie devs Team Cherry have gone above and beyond to make Hollow Knight one of the most enjoyable experiences the Switch has to offer, in what will be remembered as possibly the best third-party game on the system to date.",
+    "score": 100,
+    "publicationName": "Vooks",
+    "author": "",
+    "date": "2018-07-12",
+    "url": "https://www.vooks.net/hollow-knight-switch-eshop-review/",
+    "platform": "Nintendo Switch"
+   }
+  ]
+ },
+ "links": {
+  "self": {
+   "href": "https://backend.metacritic.com/reviews/metacritic/critic/games/hollow-knight/web?offset=0&limit=3&sort=score"
+  },
+  "prev": {
+   "href": null
+  },
+  "next": {
+   "href": "https://backend.metacritic.com/reviews/metacritic/critic/games/hollow-knight/web?offset=3&limit=3&sort=score"
+  },
+  "first": {
+   "href": "https://backend.metacritic.com/reviews/metacritic/critic/games/hollow-knight/web?offset=0&limit=3&sort=score"
+  },
+  "last": {
+   "href": "https://backend.metacritic.com/reviews/metacritic/critic/games/hollow-knight/web?offset=27&limit=3&sort=score"
+  },
+  "filterOptions": [
+   {
+    "label": "All Reviews",
+    "value": "all",
+    "href": "https://backend.metacritic.com/reviews/metacritic/critic/games/hollow-knight/web?offset=0&limit=3&sort=score&filterBySentiment=all"
+   },
+   {
+    "label": "Positive Reviews",
+    "value": "positive",
+    "href": "https://backend.metacritic.com/reviews/metacritic/critic/games/hollow-knight/web?offset=0&limit=3&sort=score&filterBySentiment=positive"
+   },
+   {
+    "label": "Mixed Reviews",
+    "value": "neutral",
+    "href": "https://backend.metacritic.com/reviews/metacritic/critic/games/hollow-knight/web?offset=0&limit=3&sort=score&filterBySentiment=neutral"
+   },
+   {
+    "label": "Negative Reviews",
+    "value": "negative",
+    "href": "https://backend.metacritic.com/reviews/metacritic/critic/games/hollow-knight/web?offset=0&limit=3&sort=score&filterBySentiment=negative"
+   }
+  ],
+  "sortOptions": [
+   {
+    "label": "Metascore",
+    "value": "score",
+    "href": "https://backend.metacritic.com/reviews/metacritic/critic/games/hollow-knight/web?offset=0&limit=3&sort=score"
+   },
+   {
+    "label": "Recently Added",
+    "value": "date",
+    "href": "https://backend.metacritic.com/reviews/metacritic/critic/games/hollow-knight/web?offset=0&limit=3&sort=date"
+   },
+   {
+    "label": "Publication (A-Z)",
+    "value": "publication",
+    "href": "https://backend.metacritic.com/reviews/metacritic/critic/games/hollow-knight/web?offset=0&limit=3&sort=publication"
+   }
+  ]
+ },
+ "meta": {
+  "componentName": null,
+  "componentDisplayName": null,
+  "componentType": null
+ }
+}
