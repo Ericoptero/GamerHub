@@ -2,27 +2,52 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ACCENTS } from "./constants";
 
+/** O que aparece embaixo da capa nos cards da biblioteca. */
+export interface CardPrefs {
+  platform: boolean;
+  devices: boolean;
+  accounts: boolean;
+  /** Esconde do card o que for igual em todos os jogos da lista (vai uma vez para o subtítulo). */
+  auto: boolean;
+}
+
 export interface Prefs {
   accent: string;
   coverSize: number;
+  card: CardPrefs;
 }
 
 const KEY = "gamerhub.prefs";
-const DEFAULTS: Prefs = { accent: ACCENTS[0], coverSize: 150 };
+const DEFAULT_CARD: CardPrefs = { platform: true, devices: true, accounts: true, auto: true };
+export const DEFAULT_PREFS: Prefs = { accent: ACCENTS[0], coverSize: 150, card: DEFAULT_CARD };
 const EVENT = "gamerhub:prefs";
+
+/** Valida o que veio do localStorage; campo ausente ou inválido volta ao padrão. */
+export function parsePrefs(raw: unknown): Prefs {
+  const p = (raw && typeof raw === "object" ? raw : {}) as Partial<Record<keyof Prefs, unknown>>;
+  const card = (p.card && typeof p.card === "object" ? p.card : {}) as Partial<Record<keyof CardPrefs, unknown>>;
+  const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
+  return {
+    accent: typeof p.accent === "string" && /^#[0-9a-f]{6}$/i.test(p.accent) ? p.accent : DEFAULT_PREFS.accent,
+    coverSize:
+      typeof p.coverSize === "number" && p.coverSize >= 110 && p.coverSize <= 220
+        ? p.coverSize
+        : DEFAULT_PREFS.coverSize,
+    card: {
+      platform: bool(card.platform, DEFAULT_CARD.platform),
+      devices: bool(card.devices, DEFAULT_CARD.devices),
+      accounts: bool(card.accounts, DEFAULT_CARD.accounts),
+      auto: bool(card.auto, DEFAULT_CARD.auto),
+    },
+  };
+}
 
 export function readPrefs(): Prefs {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return DEFAULTS;
-    const p = JSON.parse(raw) as Partial<Prefs>;
-    return {
-      accent: typeof p.accent === "string" && /^#[0-9a-f]{6}$/i.test(p.accent) ? p.accent : DEFAULTS.accent,
-      coverSize:
-        typeof p.coverSize === "number" && p.coverSize >= 110 && p.coverSize <= 220 ? p.coverSize : DEFAULTS.coverSize,
-    };
+    return parsePrefs(raw ? JSON.parse(raw) : null);
   } catch {
-    return DEFAULTS;
+    return DEFAULT_PREFS;
   }
 }
 

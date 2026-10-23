@@ -278,6 +278,7 @@ export interface Candidate {
   cover_thumb: string | null;
   kind: string | null;
   score: number;
+  url: string | null;
   genres: string[];
   suggested_genre: string | null;
   in_library: number[];
@@ -315,16 +316,15 @@ export interface Job {
   log: string[];
 }
 
-export interface PendingLink {
+/** Jogo com alguma integração pendente, com todas as integrações dele. */
+export interface PendingGame {
   game_id: number;
-  game_name: string;
+  name: string;
+  platform_id: number;
   platform: string;
-  provider: string;
-  status: LinkStatus;
-  matched_name: string | null;
-  match_score: number | null;
-  candidates: LinkCandidate[];
-  last_error: string | null;
+  release_date: string | null;
+  cover: string | null;
+  links: ExternalLink[];
 }
 
 // ---------- import / export ----------

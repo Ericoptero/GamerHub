@@ -20,12 +20,12 @@ import type {
   Job,
   LoginIn,
   Meta,
-  PendingLink,
+  PendingGame,
   Platform,
   PlatformIn,
   PlatformPatch,
+  ProviderName,
   RefreshIn,
-  SearchProvider,
   SignupIn,
   Store,
   StoreName,
@@ -82,7 +82,7 @@ export const useMeta = () =>
 export const usePending = (provider?: string) =>
   useQuery({
     queryKey: [...keys.pending, provider ?? ""],
-    queryFn: () => api.get<PendingLink[]>(`/api/integrations/pending${qs({ provider })}`),
+    queryFn: () => api.get<PendingGame[]>(`/api/integrations/pending${qs({ provider })}`),
   });
 
 export const useJobs = (refetchInterval?: number | false) =>
@@ -101,11 +101,14 @@ export const useJob = (id: number | null) =>
     refetchInterval: (q) => (isJobActive(q.state.data) || !q.state.data ? 1500 : false),
   });
 
-export const useExternalSearch = (provider: SearchProvider, q: string, platformId: number | null) =>
+/** Busca avulsa numa integração. Com `gameId`, ranqueia pela plataforma e pelo ano daquele jogo. */
+export const useExternalSearch = (provider: ProviderName, q: string, platformId: number | null, gameId?: number) =>
   useQuery({
-    queryKey: ["ext-search", provider, q, platformId ?? 0],
+    queryKey: ["ext-search", provider, q, platformId ?? 0, gameId ?? 0],
     queryFn: () =>
-      api.get<Candidate[]>(`/api/integrations/search${qs({ provider, q, platform_id: platformId })}`),
+      api.get<Candidate[]>(
+        `/api/integrations/search${qs({ provider, q, platform_id: platformId, game_id: gameId })}`,
+      ),
     enabled: q.trim().length >= 2,
     staleTime: 5 * 60_000,
     retry: false,
@@ -208,10 +211,19 @@ export function useRefreshGame(gameId: number) {
   });
 }
 
+export interface ConfirmLinkIn {
+  provider: string;
+  externalId: string;
+  name?: string;
+  url?: string | null;
+  score?: number;
+}
+
 export function useConfirmLink(gameId: number) {
   return useMutation({
-    mutationFn: ({ provider, externalId }: { provider: string; externalId: string }) =>
-      api.put<Job>(`/api/games/${gameId}/links/${provider}`, { external_id: externalId }),
+    // name/url/score: o escolhido veio de uma busca avulsa e não está entre os candidatos salvos.
+    mutationFn: ({ provider, externalId, name, url, score }: ConfirmLinkIn) =>
+      api.put<Job>(`/api/games/${gameId}/links/${provider}`, { external_id: externalId, name, url, score }),
   });
 }
 

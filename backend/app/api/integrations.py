@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.auth.deps import current_user
 from app.db import get_db
 from app.domain import PROVIDERS, fold, normalize_title
 from app.enrichment import jobs
+from app.enrichment.orchestrator import load_snapshot
 from app.integrations.base import Candidate, MatchContext, ProviderError
 from app.integrations.cache import cached
 from app.integrations.matching import display_score, rank
@@ -17,13 +18,15 @@ from app.schemas import (
     JobOut,
     LinkConfirmIn,
     LinkOut,
-    PendingLinkOut,
+    PendingGameOut,
+    ProviderName,
     ProvidersStatus,
     RefreshIn,
-    SearchProvider,
 )
 from app.seed.seed_data import suggest_genre
-from app.services.games import get_game
+from app.services.games import get_game, media_url
+
+PENDING_STATUSES = ("ambiguous", "not_found", "error")
 
 router = APIRouter(prefix="/api", tags=["integrations"])
 
@@ -35,22 +38,31 @@ def status():
 
 @router.get("/integrations/search", response_model=list[CandidateOut])
 async def search(
-    provider: SearchProvider,
+    provider: ProviderName,
     q: str = Query(min_length=2, max_length=200),
     platform_id: int | None = None,
+    game_id: int | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
+    """Busca avulsa numa integração. Com `game_id`, ranqueia com a plataforma e o ano daquele jogo
+    (é o "procurar por outro nome" do Precisa da sua ajuda)."""
     prov = get_provider(provider)
     if not prov.enabled:
         raise HTTPException(409, f"{provider.upper()} não configurado (veja o .env)")
-    platform = db.get(Platform, platform_id) if platform_id else None
-    ctx = MatchContext(
-        name=q,
-        platform=platform.name if platform else None,
-        igdb_platform_id=platform.igdb_platform_id if platform else None,
-        rawg_platform_id=platform.rawg_platform_id if platform else None,
-    )
+    if game_id is not None:
+        get_game(db, user.id, game_id)  # 404 se não for do usuário
+        snap = load_snapshot(game_id)
+        assert snap is not None
+        ctx = snap.ctx.model_copy(update={"name": q, "canonical_name": None, "alt_names": []})
+    else:
+        platform = db.get(Platform, platform_id) if platform_id else None
+        ctx = MatchContext(
+            name=q,
+            platform=platform.name if platform else None,
+            igdb_platform_id=platform.igdb_platform_id if platform else None,
+            rawg_platform_id=platform.rawg_platform_id if platform else None,
+        )
     try:
         found = await cached(provider, "search", (q, ctx.platform), lambda: prov.search(q, ctx), list[Candidate])
     except ProviderError as e:
@@ -82,6 +94,7 @@ async def search(
             cover_thumb=c.cover_thumb,
             kind=c.kind,
             score=display_score(c.score),
+            url=c.url,
             genres=c.genres,
             suggested_genre=suggest_genre(c.genres),
             in_library=names.get(normalize_title(c.name), []),
@@ -91,29 +104,26 @@ async def search(
     ]
 
 
-@router.get("/integrations/pending", response_model=list[PendingLinkOut])
+@router.get("/integrations/pending", response_model=list[PendingGameOut])
 def pending(provider: str | None = None, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    q = (
-        select(ExternalLink, Game)
-        .join(Game, Game.id == ExternalLink.game_id)
-        .where(Game.user_id == user.id, ExternalLink.status.in_(("ambiguous", "not_found", "error")))
-        .order_by(Game.name)
-    )
+    """Um item por jogo com alguma integração em dúvida, sem resultado ou com erro, trazendo todas
+    as integrações dele (inclusive as resolvidas), para resolver tudo num lugar só."""
+    open_links = select(ExternalLink.game_id).where(ExternalLink.status.in_(PENDING_STATUSES))
     if provider:
-        q = q.where(ExternalLink.provider == provider)
+        open_links = open_links.where(ExternalLink.provider == provider)
+    q = select(Game).where(Game.user_id == user.id, Game.id.in_(open_links)).options(selectinload(Game.links))
+    games = sorted(db.scalars(q), key=lambda g: fold(g.name))
     return [
-        PendingLinkOut(
+        PendingGameOut(
             game_id=g.id,
-            game_name=g.name,
+            name=g.name,
+            platform_id=g.platform_id,
             platform=g.platform.name,
-            provider=lk.provider,
-            status=lk.status,
-            matched_name=lk.matched_name,
-            match_score=lk.match_score,
-            candidates=lk.candidates or [],
-            last_error=lk.last_error,
+            release_date=g.release_date,
+            cover=media_url(g.cover_path, g.cover_url),
+            links=[LinkOut.model_validate(lk) for lk in g.links],
         )
-        for lk, g in db.execute(q).all()
+        for g in games
     ]
 
 
@@ -144,7 +154,9 @@ def confirm_link(
     """Confirma qual item da integração é este jogo e já busca os dados dele."""
     _check_provider(provider)
     game = get_game(db, user.id, game_id)
-    jobs.set_link(db, game, provider, data.external_id.strip(), "confirmed")
+    # Escolhido numa busca avulsa: não está entre os candidatos salvos, então vêm nome e link junto.
+    picked = {"name": data.name, "url": data.url, "score": data.score} if data.name else None
+    jobs.set_link(db, game, provider, data.external_id.strip(), "confirmed", picked=picked)
     return jobs.request_refresh(db, game, RefreshIn(providers=[provider], force=False))
 
 

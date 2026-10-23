@@ -1,11 +1,11 @@
 import { errorMessage } from "../../api/client";
 import { useConfirmLink, useIgnoreLink, useRefreshGame } from "../../api/queries";
 import type { ExternalLink, GameDetail, Job } from "../../api/types";
+import { CandidateList } from "../../components/CandidateList";
 import { Icon } from "../../components/Icon";
 import { useToast } from "../../components/Toast";
 import { LINK_STATUS_LABEL, PROVIDER_LABEL } from "../../lib/constants";
 import { fmtDate } from "../../lib/format";
-import { summarizePlatforms } from "../../lib/platforms";
 import styles from "./GameDetail.module.css";
 
 interface JobProps {
@@ -111,40 +111,16 @@ export function MatchReview({ game, links, watcher }: { game: GameDetail; links:
       {links.map((link) => (
         <div key={link.provider} className="field" style={{ gap: 8 }}>
           <span className="eyebrow">{PROVIDER_LABEL[link.provider] ?? link.provider}</span>
-          <div className={styles.candidates}>
-            {link.candidates.map((c) => (
-              <div key={c.external_id} className={styles.candidate}>
-                {c.cover_thumb ? (
-                  <img className={styles.candidateThumb} src={c.cover_thumb} alt="" loading="lazy" />
-                ) : (
-                  <span className={styles.candidateThumb} aria-hidden="true" />
-                )}
-                <span className={styles.candidateInfo}>
-                  <span className={styles.candidateName}>
-                    {c.name}
-                    {c.year ? ` (${c.year})` : ""}
-                  </span>
-                  <span className={styles.candidateMeta}>
-                    {summarizePlatforms(c.platforms)} ·{" "}
-                    {Math.round(c.score)}% de semelhança
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  disabled={confirmLink.isPending || watcher.active}
-                  onClick={() =>
-                    confirmLink.mutate(
-                      { provider: link.provider, externalId: c.external_id },
-                      { onSuccess: watcher.start, onError: (e) => toast.error(errorMessage(e)) },
-                    )
-                  }
-                >
-                  É este
-                </button>
-              </div>
-            ))}
-          </div>
+          <CandidateList
+            candidates={link.candidates}
+            disabled={confirmLink.isPending || watcher.active}
+            onPick={(c) =>
+              confirmLink.mutate(
+                { provider: link.provider, externalId: c.external_id },
+                { onSuccess: watcher.start, onError: (e) => toast.error(errorMessage(e)) },
+              )
+            }
+          />
           <button
             type="button"
             className="btn btn-link"

@@ -109,10 +109,16 @@ A primeira passada nos 240 jogos leva de 10 a 15 minutos. O Metacritic é consul
 propósito, e as passadas seguintes usam cache. O progresso aparece na tela, e se o container
 reiniciar no meio, o job continua de onde parou.
 
-Cada jogo é casado com o item de cada integração por nome, plataforma e ano. Quando há dúvida
-(dois "Tomb Raider", por exemplo), o jogo vai para **Pendências**: você confirma o certo ou manda
-ignorar aquela integração para o jogo. Na página do jogo, **Atualizar pela integração** refaz só
-aquele jogo.
+Cada jogo é casado com o item de cada integração por nome, plataforma e ano. Quando uma integração
+fica em dúvida (dois "Tomb Raider", por exemplo), não acha nada ou dá erro, o jogo aparece em
+**Precisa da sua ajuda**, num card só com todas as integrações dele. Ali você:
+
+- escolhe o resultado certo;
+- procura por outro nome em cada integração (ex.: o título em inglês);
+- corrige nome, plataforma ou lançamento e busca de novo ("Mais campos…" abre o editor completo);
+- ou ignora aquela integração para o jogo.
+
+Na página do jogo, **Atualizar pela integração** refaz só aquele jogo.
 
 O enriquecimento respeita estas regras:
 

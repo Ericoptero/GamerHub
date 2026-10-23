@@ -297,6 +297,7 @@ class CandidateOut(BaseModel):
     cover_thumb: str | None
     kind: str | None
     score: float
+    url: str | None = None
     genres: list[str] = []
     suggested_genre: str | None = None
     in_library: list[int] = []
@@ -318,6 +319,10 @@ class EnrichIn(BaseModel):
 
 class LinkConfirmIn(BaseModel):
     external_id: str
+    # Preenchidos quando o escolhido veio de uma busca avulsa (não está entre os candidatos salvos).
+    name: str | None = Field(default=None, max_length=300)
+    url: str | None = Field(default=None, max_length=500)
+    score: float | None = None
 
 
 class JobOut(Out):
@@ -337,16 +342,16 @@ class JobOut(Out):
     log: list[str]
 
 
-class PendingLinkOut(BaseModel):
+class PendingGameOut(BaseModel):
+    """Jogo com alguma integração pendente e todas as integrações dele."""
+
     game_id: int
-    game_name: str
+    name: str
+    platform_id: int
     platform: str
-    provider: str
-    status: str
-    matched_name: str | None
-    match_score: float | None
-    candidates: list[dict]
-    last_error: str | None
+    release_date: date | None
+    cover: str | None
+    links: list[LinkOut]
 
 
 # ---------- usuários e login ----------

@@ -10,7 +10,10 @@ import { ErrorState, LoadingState } from "../../components/NotFound";
 import { StoreMark } from "../../components/StoreMark";
 import { STATUS, STATUS_DOT, STORE_LABEL, mcColor } from "../../lib/constants";
 import { hrs } from "../../lib/format";
+import { usePrefs } from "../../lib/prefs";
 import { MOBILE, useMediaQuery } from "../../lib/useMediaQuery";
+import { CardDisplayMenu } from "./CardDisplayMenu";
+import { cardDisplay, devicesByPlatform, metaLine, sharedSummary, type CardDisplay } from "./cardInfo";
 import { FilterPanel } from "./FilterPanel";
 import {
   SORTS,
@@ -63,6 +66,10 @@ export function LibraryPage() {
   const stats = useMemo(() => libraryStats(all), [all]);
   const fc = useMemo(() => facets(tabGames, accs), [tabGames, accs]);
   const accountsById = useMemo(() => new Map(accs.map((a) => [a.id, a])), [accs]);
+  const [prefs] = usePrefs();
+  const devicesOf = useMemo(() => devicesByPlatform(devs), [devs]);
+  const show = useMemo(() => cardDisplay(list, prefs.card, devicesOf), [list, prefs.card, devicesOf]);
+  const sharedParts = sharedSummary(show.shared, accountsById);
 
   if (games.isError) return <ErrorState error={games.error} onRetry={() => games.refetch()} />;
   if (games.isPending) return <LoadingState text="Carregando sua biblioteca…" />;
@@ -143,6 +150,7 @@ export function LibraryPage() {
               {list.length} {list.length === 1 ? "jogo" : "jogos"}
               {list.length !== tabGames.length ? ` de ${tabGames.length}` : ""}
             </span>
+            {sharedParts.length > 0 && <span className={styles.shared}>{sharedParts.join(" · ")}</span>}
           </div>
           <div className={styles.search}>
             <Icon name="search" size={16} strokeWidth={2} className={styles.searchIcon} />
@@ -178,16 +186,19 @@ export function LibraryPage() {
           >
             <Icon name="sort" style={f.dir === "desc" ? { transform: "scaleY(-1)" } : undefined} />
           </button>
-          <button
-            type="button"
-            className={`btn ${panelOpen ? "btn-primary" : ""} ${styles.filterBtn}`}
-            aria-expanded={panelOpen}
-            aria-controls={isMobile ? undefined : "painel-filtros"}
-            onClick={() => setPanelOpen((o) => !o)}
-          >
-            <Icon name="filter" size={14} /> Filtros
-            {chips.length > 0 && <span className={styles.badge}>{chips.length}</span>}
-          </button>
+          <div className={styles.toolbarActions}>
+            <button
+              type="button"
+              className={`btn ${panelOpen ? "btn-primary" : ""} ${styles.filterBtn}`}
+              aria-expanded={panelOpen}
+              aria-controls={isMobile ? undefined : "painel-filtros"}
+              onClick={() => setPanelOpen((o) => !o)}
+            >
+              <Icon name="filter" size={14} /> Filtros
+              {chips.length > 0 && <span className={styles.badge}>{chips.length}</span>}
+            </button>
+            <CardDisplayMenu />
+          </div>
         </div>
 
         {f.tab === "backlog" && (
@@ -260,7 +271,7 @@ export function LibraryPage() {
           ) : (
             <div className={styles.grid}>
               {list.map((g) => (
-                <Card key={g.id} game={g} accounts={accountsById} />
+                <Card key={g.id} game={g} accounts={accountsById} show={show} devicesOf={devicesOf} />
               ))}
             </div>
           )}
@@ -287,7 +298,17 @@ function prioDot(p: Priority): CSSProperties {
 
 const MAX_ACCOUNT_CHIPS = 2;
 
-function Card({ game: g, accounts }: { game: GameCard; accounts: Map<number, Account> }) {
+function Card({
+  game: g,
+  accounts,
+  show,
+  devicesOf,
+}: {
+  game: GameCard;
+  accounts: Map<number, Account>;
+  show: CardDisplay;
+  devicesOf: Map<number, string[]>;
+}) {
   const played = g.status === "done" || g.status === "dropped";
   const timeLabel = played
     ? g.played_hours
@@ -296,7 +317,8 @@ function Card({ game: g, accounts }: { game: GameCard; accounts: Map<number, Acc
     : g.hltb_main_hours
       ? (hrs(g.hltb_main_hours) ?? "")
       : "HLTB —";
-  const owners = g.account_ids.map((id) => accounts.get(id)).filter((a): a is Account => !!a);
+  const owners = show.accounts ? g.account_ids.map((id) => accounts.get(id)).filter((a): a is Account => !!a) : [];
+  const meta = metaLine(g, show, devicesOf);
   return (
     <Link to={`/jogos/${g.id}`} className={styles.card} aria-label={`Abrir ${g.name}`}>
       <GameCover
@@ -315,6 +337,12 @@ function Card({ game: g, accounts }: { game: GameCard; accounts: Map<number, Acc
         )}
         <span className={styles.cardText}>{g.name}</span>
       </span>
+      {meta && (
+        <span className={styles.meta} title={meta}>
+          {show.devices && <Icon name="device" size={12} strokeWidth={2} className={styles.metaIcon} />}
+          <span className={styles.metaText}>{meta}</span>
+        </span>
+      )}
       {owners.length > 0 && (
         <span className={styles.owners}>
           {owners.slice(0, MAX_ACCOUNT_CHIPS).map((a) => (

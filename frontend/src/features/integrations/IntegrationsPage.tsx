@@ -1,28 +1,20 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
 
 import { errorMessage } from "../../api/client";
-import {
-  isJobActive,
-  useConfirmLink,
-  useEnrich,
-  useIgnoreLink,
-  useJobs,
-  useMeta,
-  usePending,
-} from "../../api/queries";
-import type { EnrichIn, Job, PendingLink } from "../../api/types";
+import { isJobActive, useEnrich, useJobs, useMeta } from "../../api/queries";
+import type { EnrichIn } from "../../api/types";
 import { Icon } from "../../components/Icon";
 import { useToast } from "../../components/Toast";
 import { useJobWatcher } from "../../components/useJobWatcher";
-import { ACCENTS, JOB_KIND_SHORT, LINK_STATUS_LABEL, PROVIDER_LABEL } from "../../lib/constants";
+import { ACCENTS, JOB_KIND_SHORT, PROVIDER_LABEL } from "../../lib/constants";
 import { fmtLocalDateTime } from "../../lib/format";
-import { summarizePlatforms } from "../../lib/platforms";
 import { usePrefs } from "../../lib/prefs";
-import styles from "./IntegrationsPage.module.css";
+import { CardDisplayOptions } from "../library/CardDisplayMenu";
 import { AccountsCard } from "./AccountsCard";
 import { ImportPanel } from "./ImportPanel";
 import { JobProgress } from "./JobProgress";
+import { PendingCard } from "./PendingCard";
+import styles from "./IntegrationsPage.module.css";
 
 export function IntegrationsPage() {
   return (
@@ -191,108 +183,6 @@ function EnrichCard() {
   );
 }
 
-// ---------- pendências ----------
-
-const PENDING_FILTERS = ["", "igdb", "rawg", "hltb", "metacritic"];
-
-function PendingCard() {
-  const [provider, setProvider] = useState("");
-  const pending = usePending(provider || undefined);
-  const items = pending.data ?? [];
-  const watcher = useJobWatcher();
-
-  return (
-    <section aria-labelledby="h-pend" className="card">
-      <h2 id="h-pend" className="section-title">
-        Precisa da sua ajuda <span className="count">{pending.data ? items.length : ""}</span>
-      </h2>
-      <p className="lead">
-        Jogos em que a busca ficou em dúvida, não achou nada ou deu erro. Escolha o candidato certo ou ignore a integração
-        para aquele jogo.
-      </p>
-      <div role="group" aria-label="Filtrar por integração" className="row" style={{ gap: 6 }}>
-        {PENDING_FILTERS.map((p) => (
-          <button key={p || "all"} type="button" className="pill" aria-pressed={provider === p} onClick={() => setProvider(p)}>
-            {p ? PROVIDER_LABEL[p] : "Todas"}
-          </button>
-        ))}
-      </div>
-      {pending.isError && <p className="error-text">{errorMessage(pending.error)}</p>}
-      {pending.data && items.length === 0 && <div className="notice">Nada pendente.</div>}
-      <div className={styles.pendingList}>
-        {items.slice(0, 60).map((it) => (
-          <PendingItem key={`${it.game_id}-${it.provider}`} item={it} onJob={watcher.start} busy={watcher.active} />
-        ))}
-      </div>
-      {items.length > 60 && <p className="muted">Mostrando 60 de {items.length}. Resolva alguns para ver o resto.</p>}
-    </section>
-  );
-}
-
-function PendingItem({ item, onJob, busy }: { item: PendingLink; onJob: (j: Job) => void; busy: boolean }) {
-  const confirm = useConfirmLink(item.game_id);
-  const ignore = useIgnoreLink(item.game_id);
-  const toast = useToast();
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className={styles.pending}>
-      <div className={styles.pendingHead}>
-        <span className={styles.pendingTitle}>
-          <Link to={`/jogos/${item.game_id}`}>{item.game_name}</Link>{" "}
-          <span className="muted">({item.platform})</span>
-        </span>
-        <span className="chip">{PROVIDER_LABEL[item.provider] ?? item.provider}</span>
-        <span className={item.status === "error" ? styles.statusErr : styles.statusWarn}>{LINK_STATUS_LABEL[item.status] ?? item.status}</span>
-      </div>
-      {item.last_error && <p className={styles.pendingError}>{item.last_error}</p>}
-      <div className="row" style={{ gap: 6 }}>
-        {item.candidates.length > 0 && (
-          <button type="button" className="btn btn-sm" aria-expanded={open} onClick={() => setOpen(!open)}>
-            {open ? "Esconder candidatos" : `Ver ${item.candidates.length} candidatos`}
-          </button>
-        )}
-        <button
-          type="button"
-          className="btn btn-sm btn-ghost"
-          disabled={ignore.isPending}
-          onClick={() => ignore.mutate(item.provider, { onError: (e) => toast.error(errorMessage(e)) })}
-        >
-          Ignorar
-        </button>
-      </div>
-      {open && (
-        <div className={styles.candidates}>
-          {item.candidates.map((c) => (
-            <div key={c.external_id} className={styles.candidate}>
-              {c.cover_thumb ? <img src={c.cover_thumb} alt="" loading="lazy" className={styles.thumb} /> : <span className={styles.thumb} aria-hidden="true" />}
-              <span className={styles.candidateInfo}>
-                <strong>
-                  {c.name}
-                  {c.year ? ` (${c.year})` : ""}
-                </strong>
-                <span className="muted">
-                  {summarizePlatforms(c.platforms, 4)} · {Math.round(c.score)}%
-                </span>
-              </span>
-              <button
-                type="button"
-                className="btn btn-sm btn-primary"
-                disabled={confirm.isPending || busy}
-                onClick={() =>
-                  confirm.mutate({ provider: item.provider, externalId: c.external_id }, { onSuccess: onJob, onError: (e) => toast.error(errorMessage(e)) })
-                }
-              >
-                É este
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ---------- exportar ----------
 
 function ExportCard() {
@@ -358,6 +248,10 @@ function PrefsCard() {
           style={{ accentColor: "var(--accent)", height: 44 }}
         />
       </label>
+      <div className="field">
+        No card de cada jogo da biblioteca
+        <CardDisplayOptions />
+      </div>
       <p className="muted" style={{ margin: 0, fontSize: 12 }}>
         Fica salvo neste navegador.
       </p>

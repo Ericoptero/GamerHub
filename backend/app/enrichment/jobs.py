@@ -159,12 +159,15 @@ def request_library_sync(db: Session, user_id: int, account_ids: list[int], reas
     return _create(db, user_id, SYNC_KIND, params, SYNC_PRIORITY, len(ids))
 
 
-def set_link(db: Session, game: Game, provider: str, external_id: str | None, status: str) -> None:
+def set_link(
+    db: Session, game: Game, provider: str, external_id: str | None, status: str, picked: dict | None = None
+) -> None:
+    """`picked` ({name, url, score}) descreve o escolhido quando ele não está entre os candidatos salvos."""
     link = db.scalar(select(ExternalLink).where(ExternalLink.game_id == game.id, ExternalLink.provider == provider))
     if link is None:
         link = ExternalLink(game_id=game.id, provider=provider, candidates=[], status=status)
         db.add(link)
-    chosen = next((c for c in link.candidates or [] if c.get("external_id") == external_id), None)
+    chosen = next((c for c in link.candidates or [] if c.get("external_id") == external_id), None) or picked
     link.status = status
     link.external_id = external_id
     link.matched_name = chosen.get("name") if chosen else None
