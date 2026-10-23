@@ -23,6 +23,7 @@ class Game(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(300))
     name_norm: Mapped[str] = mapped_column(String(300))
     platform_id: Mapped[int] = mapped_column(ForeignKey("platforms.id", ondelete="RESTRICT"))
@@ -34,6 +35,8 @@ class Game(Base):
     hltb_extra_hours: Mapped[float | None] = mapped_column(Float)
     hltb_complete_hours: Mapped[float | None] = mapped_column(Float)
     played_hours: Mapped[float | None] = mapped_column(Float)
+    # None: legado/desconhecido · "store": somado das contas de loja · "user": digitado (a loja não mexe mais).
+    played_hours_source: Mapped[str | None] = mapped_column(String(10))
 
     user_score: Mapped[int | None]
     review_text: Mapped[str | None] = mapped_column(Text)

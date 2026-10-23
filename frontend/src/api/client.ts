@@ -25,8 +25,12 @@ function detailMessage(detail: unknown, fallback: string): string {
   return fallback;
 }
 
+/** Disparado quando a API responde 401 fora das rotas de login: a sessão acabou. */
+export const UNAUTHORIZED_EVENT = "gamerhub:unauthorized";
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
-  const init: RequestInit = { method, headers: { Accept: "application/json" } };
+  // X-GamerHub: com o login ligado, o backend recusa mutações sem ele (proteção contra CSRF).
+  const init: RequestInit = { method, headers: { Accept: "application/json", "X-GamerHub": "1" } };
   if (body instanceof FormData) {
     init.body = body;
   } else if (body !== undefined) {
@@ -50,6 +54,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
     }
   }
   if (!response.ok) {
+    if (response.status === 401 && !url.startsWith("/api/auth/")) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
     const detail = data && typeof data === "object" ? (data as { detail?: unknown }).detail : data;
     throw new ApiError(response.status, detailMessage(detail, `Erro ${response.status}`));
   }

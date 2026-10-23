@@ -4,9 +4,10 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth.deps import current_user
 from app.db import get_db
 from app.enrichment.jobs import link_and_refresh
-from app.models import Comment, Game, Media
+from app.models import Comment, Game, Media, User
 from app.schemas import CommentIn, CommentOut, GameCard, GameCreate, GameDetail, GamePatch, MediaIn
 from app.services import games as svc
 from app.services.media_cache import cache_game_images
@@ -15,21 +16,23 @@ router = APIRouter(prefix="/api", tags=["games"])
 
 
 @router.get("/games", response_model=list[GameCard])
-def list_games(status: str | None = None, db: Session = Depends(get_db)):
-    q = select(Game).order_by(Game.id)
+def list_games(status: str | None = None, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    q = select(Game).where(Game.user_id == user.id).order_by(Game.id)
     if status:
         q = q.where(Game.status == status)
     return [svc.to_card(g) for g in db.scalars(q)]
 
 
 @router.get("/games/{game_id}", response_model=GameDetail)
-def get_game(game_id: int, db: Session = Depends(get_db)):
-    return svc.to_detail(svc.get_game(db, game_id))
+def get_game(game_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    return svc.to_detail(svc.get_game(db, user.id, game_id))
 
 
 @router.post("/games", response_model=GameDetail, status_code=201)
-def create_game(data: GameCreate, background: BackgroundTasks, db: Session = Depends(get_db)):
-    game = svc.create_game(db, data)
+def create_game(
+    data: GameCreate, background: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(current_user)
+):
+    game = svc.create_game(db, user.id, data)
     if data.link:
         link_and_refresh(db, game, data.link.provider, data.link.external_id)
     elif game.cover_url:
@@ -39,16 +42,22 @@ def create_game(data: GameCreate, background: BackgroundTasks, db: Session = Dep
 
 
 @router.patch("/games/{game_id}", response_model=GameDetail)
-def patch_game(game_id: int, patch: GamePatch, background: BackgroundTasks, db: Session = Depends(get_db)):
-    game = svc.patch_game(db, svc.get_game(db, game_id), patch)
+def patch_game(
+    game_id: int,
+    patch: GamePatch,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    game = svc.patch_game(db, svc.get_game(db, user.id, game_id), patch)
     if {"cover_url", "background_url"} & patch.model_fields_set:
         background.add_task(cache_game_images, game.id)
     return svc.to_detail(game)
 
 
 @router.delete("/games/{game_id}", status_code=204)
-def delete_game(game_id: int, db: Session = Depends(get_db)):
-    svc.delete_game(db, svc.get_game(db, game_id))
+def delete_game(game_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    svc.delete_game(db, svc.get_game(db, user.id, game_id))
     return Response(status_code=204)
 
 
@@ -56,30 +65,30 @@ def delete_game(game_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/games/{game_id}/comments", response_model=list[CommentOut])
-def list_comments(game_id: int, db: Session = Depends(get_db)):
-    game = svc.get_game(db, game_id)
+def list_comments(game_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    game = svc.get_game(db, user.id, game_id)
     return sorted(game.comments, key=lambda c: c.created_at, reverse=True)
 
 
 @router.post("/games/{game_id}/comments", response_model=CommentOut, status_code=201)
-def add_comment(game_id: int, data: CommentIn, db: Session = Depends(get_db)):
-    game = svc.get_game(db, game_id)
+def add_comment(game_id: int, data: CommentIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    game = svc.get_game(db, user.id, game_id)
     comment = Comment(body=data.body.strip(), created_at=datetime.now(timezone.utc).replace(tzinfo=None))
     game.comments.append(comment)
     db.commit()
     return comment
 
 
-def _comment(db: Session, comment_id: int) -> Comment:
+def _comment(db: Session, user_id: int, comment_id: int) -> Comment:
     c = db.get(Comment, comment_id)
-    if c is None:
+    if c is None or c.game.user_id != user_id:
         raise HTTPException(404, "Comentário não encontrado")
     return c
 
 
 @router.patch("/comments/{comment_id}", response_model=CommentOut)
-def edit_comment(comment_id: int, data: CommentIn, db: Session = Depends(get_db)):
-    c = _comment(db, comment_id)
+def edit_comment(comment_id: int, data: CommentIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    c = _comment(db, user.id, comment_id)
     c.body = data.body.strip()
     c.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
@@ -87,8 +96,8 @@ def edit_comment(comment_id: int, data: CommentIn, db: Session = Depends(get_db)
 
 
 @router.delete("/comments/{comment_id}", status_code=204)
-def delete_comment(comment_id: int, db: Session = Depends(get_db)):
-    db.delete(_comment(db, comment_id))
+def delete_comment(comment_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    db.delete(_comment(db, user.id, comment_id))
     db.commit()
     return Response(status_code=204)
 
@@ -97,8 +106,14 @@ def delete_comment(comment_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/games/{game_id}/media", response_model=GameDetail, status_code=201)
-def add_media(game_id: int, data: MediaIn, background: BackgroundTasks, db: Session = Depends(get_db)):
-    game = svc.get_game(db, game_id)
+def add_media(
+    game_id: int,
+    data: MediaIn,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    game = svc.get_game(db, user.id, game_id)
     if any(m.kind == data.kind and m.url == data.url for m in game.media):
         raise HTTPException(409, "Essa mídia já está cadastrada")
     pos = max((m.position for m in game.media if m.kind == data.kind), default=-1) + 1
@@ -110,9 +125,9 @@ def add_media(game_id: int, data: MediaIn, background: BackgroundTasks, db: Sess
 
 
 @router.delete("/media/{media_id}", status_code=204)
-def delete_media(media_id: int, db: Session = Depends(get_db)):
+def delete_media(media_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
     m = db.get(Media, media_id)
-    if m is None:
+    if m is None or m.game.user_id != user.id:
         raise HTTPException(404, "Mídia não encontrada")
     db.delete(m)
     db.commit()

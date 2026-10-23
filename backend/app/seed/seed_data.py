@@ -3,6 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.domain import DEFAULT_USER_ID, fold
 from app.models import Device, Genre, Platform
 
 GENRES = [
@@ -93,20 +94,27 @@ def suggest_genre(external_genres: list[str]) -> str | None:
     return None
 
 
+def seed_devices(db: Session, user_id: int) -> None:
+    """Aparelhos padrão de um usuário. Plataformas renomeadas ou removidas ficam de fora."""
+    platforms = {fold(p.name): p for p in db.scalars(select(Platform))}
+    for i, (name, kind, plats) in enumerate(DEVICES):
+        found = [platforms[fold(p)] for p in plats if fold(p) in platforms]
+        db.add(Device(user_id=user_id, name=name, kind=kind, sort_order=i, platforms=found))
+
+
 def seed_catalogs(db: Session) -> bool:
-    """Popula gêneros, plataformas e aparelhos se o banco estiver vazio. Idempotente."""
+    """Popula gêneros, plataformas e os aparelhos do usuário principal se o banco estiver vazio. Idempotente."""
     if db.scalar(select(Platform.id).limit(1)) is not None:
         return False
     for i, name in enumerate(GENRES):
         db.add(Genre(name=name, sort_order=i))
-    by_name: dict[str, Platform] = {}
     for i, (name, igdb, rawg, mc, hltb) in enumerate(PLATFORMS):
-        p = Platform(
-            name=name, sort_order=i, igdb_platform_id=igdb, rawg_platform_id=rawg, metacritic_name=mc, hltb_name=hltb
+        db.add(
+            Platform(
+                name=name, sort_order=i, igdb_platform_id=igdb, rawg_platform_id=rawg, metacritic_name=mc, hltb_name=hltb
+            )
         )
-        db.add(p)
-        by_name[name] = p
-    for i, (name, kind, plats) in enumerate(DEVICES):
-        db.add(Device(name=name, kind=kind, sort_order=i, platforms=[by_name[p] for p in plats]))
+    db.flush()
+    seed_devices(db, DEFAULT_USER_ID)
     db.commit()
     return True

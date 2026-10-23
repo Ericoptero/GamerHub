@@ -3,13 +3,15 @@
 import re
 import unicodedata
 
-STATUSES = ("backlog", "playing", "done", "dropped", "hype")
+# "owned": jogos que você tem (vindos das contas de loja) mas ainda não pôs na fila.
+STATUSES = ("backlog", "playing", "done", "dropped", "hype", "owned")
 STATUS_LABELS = {
     "backlog": "Lista de espera",
     "playing": "Jogando",
     "done": "Finalizados",
     "dropped": "Dropados",
     "hype": "Hype",
+    "owned": "Biblioteca",
 }
 STATUS_SINGULAR = {
     "backlog": "Na fila",
@@ -17,7 +19,11 @@ STATUS_SINGULAR = {
     "done": "Finalizado",
     "dropped": "Dropado",
     "hype": "Hype",
+    "owned": "Na biblioteca",
 }
+
+# Dono de tudo quando o login está desligado (e de tudo o que existia antes do multiusuário).
+DEFAULT_USER_ID = 1
 
 PRIORITIES = ("Alta", "Media", "Baixa")
 PRIORITY_LABELS = {"Alta": "Alta", "Media": "Média", "Baixa": "Baixa"}

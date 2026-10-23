@@ -109,9 +109,10 @@ def to_detail(g: Game) -> GameDetail:
     )
 
 
-def get_game(db: Session, game_id: int) -> Game:
+def get_game(db: Session, user_id: int, game_id: int) -> Game:
+    """Jogo do usuário; o de outro usuário é tratado como inexistente."""
     game = db.get(Game, game_id)
-    if game is None:
+    if game is None or game.user_id != user_id:
         raise HTTPException(404, "Jogo não encontrado")
     return game
 
@@ -132,9 +133,10 @@ def _genre(db: Session, genre_id: int | None) -> Genre | None:
     return g
 
 
-def create_game(db: Session, data: GameCreate) -> Game:
+def create_game(db: Session, user_id: int, data: GameCreate) -> Game:
     origin = data.link.provider if data.link else "manual"
     game = Game(
+        user_id=user_id,
         name=data.name.strip(),
         name_norm=normalize_title(data.name),
         platform=_platform(db, data.platform_id),
@@ -186,6 +188,9 @@ def patch_game(db: Session, game: Game, patch: GamePatch) -> Game:
             continue
         if field in META_FIELDS and getattr(game, field) != value:
             locked.add(field)
+        if field == "played_hours" and game.played_hours != value:
+            # Digitado à mão (inclusive apagar): a soma das contas de loja não mexe mais.
+            game.played_hours_source = "user"
         if field == "tags":
             value = value or []
         setattr(game, field, value)

@@ -1,7 +1,7 @@
 """DTOs da API. Os tipos do frontend (frontend/src/api/types.ts) espelham este arquivo."""
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -315,3 +315,58 @@ class PendingLinkOut(BaseModel):
     match_score: float | None
     candidates: list[dict]
     last_error: str | None
+
+
+# ---------- usuários e login ----------
+
+Username = Annotated[str, Field(min_length=3, max_length=40, pattern=r"^[\w.\-]+$")]
+Password = Annotated[str, Field(min_length=8, max_length=200)]
+
+
+class UserOut(Out):
+    id: int
+    username: str
+    display_name: str
+    is_admin: bool
+
+
+class UserAdminOut(UserOut):
+    created_at: datetime
+    last_login_at: datetime | None
+    game_count: int = 0
+
+
+class AuthMe(BaseModel):
+    auth_enabled: bool
+    signup_allowed: bool
+    needs_setup: bool  # login ligado e ninguém reivindicou o usuário principal ainda
+    user: UserOut | None
+
+
+class SignupIn(BaseModel):
+    username: Username
+    password: Password
+    display_name: str | None = Field(default=None, max_length=80)
+
+
+class UserCreate(SignupIn):
+    is_admin: bool = False
+
+
+class LoginIn(BaseModel):
+    username: str = Field(min_length=1, max_length=40)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: Password
+
+
+class PasswordResetIn(BaseModel):
+    password: Password
+
+
+class UserPatch(BaseModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=80)
+    is_admin: bool | None = None

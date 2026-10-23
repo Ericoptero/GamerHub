@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth.deps import current_user
 from app.db import get_db
 from app.domain import PROVIDERS, fold, normalize_title
 from app.enrichment import jobs
@@ -9,7 +10,7 @@ from app.integrations.base import Candidate, MatchContext, ProviderError
 from app.integrations.cache import cached
 from app.integrations.matching import display_score, rank
 from app.integrations.registry import get_provider, providers_status
-from app.models import ExternalLink, Game, Job, Platform
+from app.models import ExternalLink, Game, Job, Platform, User
 from app.schemas import (
     CandidateOut,
     EnrichIn,
@@ -38,6 +39,7 @@ async def search(
     q: str = Query(min_length=2, max_length=200),
     platform_id: int | None = None,
     db: Session = Depends(get_db),
+    user: User = Depends(current_user),
 ):
     prov = get_provider(provider)
     if not prov.enabled:
@@ -68,7 +70,7 @@ async def search(
         return out
 
     names: dict[str, list[int]] = {}
-    for gid, norm in db.execute(select(Game.id, Game.name_norm)):
+    for gid, norm in db.execute(select(Game.id, Game.name_norm).where(Game.user_id == user.id)):
         names.setdefault(norm, []).append(gid)
     return [
         CandidateOut(
@@ -90,11 +92,11 @@ async def search(
 
 
 @router.get("/integrations/pending", response_model=list[PendingLinkOut])
-def pending(provider: str | None = None, db: Session = Depends(get_db)):
+def pending(provider: str | None = None, db: Session = Depends(get_db), user: User = Depends(current_user)):
     q = (
         select(ExternalLink, Game)
         .join(Game, Game.id == ExternalLink.game_id)
-        .where(ExternalLink.status.in_(("ambiguous", "not_found", "error")))
+        .where(Game.user_id == user.id, ExternalLink.status.in_(("ambiguous", "not_found", "error")))
         .order_by(Game.name)
     )
     if provider:
@@ -119,13 +121,15 @@ def pending(provider: str | None = None, db: Session = Depends(get_db)):
 
 
 @router.post("/games/{game_id}/refresh", response_model=JobOut, status_code=202)
-def refresh(game_id: int, data: RefreshIn | None = None, db: Session = Depends(get_db)):
-    return jobs.request_refresh(db, get_game(db, game_id), data or RefreshIn())
+def refresh(
+    game_id: int, data: RefreshIn | None = None, db: Session = Depends(get_db), user: User = Depends(current_user)
+):
+    return jobs.request_refresh(db, get_game(db, user.id, game_id), data or RefreshIn())
 
 
 @router.get("/games/{game_id}/links", response_model=list[LinkOut])
-def links(game_id: int, db: Session = Depends(get_db)):
-    return get_game(db, game_id).links
+def links(game_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    return get_game(db, user.id, game_id).links
 
 
 def _check_provider(provider: str) -> None:
@@ -134,19 +138,21 @@ def _check_provider(provider: str) -> None:
 
 
 @router.put("/games/{game_id}/links/{provider}", response_model=JobOut, status_code=202)
-def confirm_link(game_id: int, provider: str, data: LinkConfirmIn, db: Session = Depends(get_db)):
+def confirm_link(
+    game_id: int, provider: str, data: LinkConfirmIn, db: Session = Depends(get_db), user: User = Depends(current_user)
+):
     """Confirma qual item da integração é este jogo e já busca os dados dele."""
     _check_provider(provider)
-    game = get_game(db, game_id)
+    game = get_game(db, user.id, game_id)
     jobs.set_link(db, game, provider, data.external_id.strip(), "confirmed")
     return jobs.request_refresh(db, game, RefreshIn(providers=[provider], force=False))
 
 
 @router.delete("/games/{game_id}/links/{provider}", response_model=list[LinkOut])
-def ignore_link(game_id: int, provider: str, db: Session = Depends(get_db)):
+def ignore_link(game_id: int, provider: str, db: Session = Depends(get_db), user: User = Depends(current_user)):
     """Marca a integração como 'ignorada' para este jogo (não busca mais)."""
     _check_provider(provider)
-    game = get_game(db, game_id)
+    game = get_game(db, user.id, game_id)
     jobs.set_link(db, game, provider, None, "ignored")
     db.refresh(game)
     return game.links
@@ -156,27 +162,27 @@ def ignore_link(game_id: int, provider: str, db: Session = Depends(get_db)):
 
 
 @router.post("/jobs/enrich", response_model=JobOut, status_code=202)
-def enrich(data: EnrichIn, db: Session = Depends(get_db)):
-    return jobs.request_enrich(db, data)
+def enrich(data: EnrichIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    return jobs.request_enrich(db, user.id, data)
 
 
 @router.get("/jobs", response_model=list[JobOut])
-def list_jobs(limit: int = Query(20, le=100), db: Session = Depends(get_db)):
-    return db.scalars(select(Job).order_by(Job.id.desc()).limit(limit)).all()
+def list_jobs(limit: int = Query(20, le=100), db: Session = Depends(get_db), user: User = Depends(current_user)):
+    return db.scalars(select(Job).where(Job.user_id == user.id).order_by(Job.id.desc()).limit(limit)).all()
 
 
-def _job(db: Session, job_id: int) -> Job:
+def _job(db: Session, user_id: int, job_id: int) -> Job:
     job = db.get(Job, job_id)
-    if job is None:
+    if job is None or job.user_id != user_id:
         raise HTTPException(404, "Job não encontrado")
     return job
 
 
 @router.get("/jobs/{job_id}", response_model=JobOut)
-def get_job(job_id: int, db: Session = Depends(get_db)):
-    return _job(db, job_id)
+def get_job(job_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    return _job(db, user.id, job_id)
 
 
 @router.post("/jobs/{job_id}/cancel", response_model=JobOut)
-def cancel_job(job_id: int, db: Session = Depends(get_db)):
-    return jobs.cancel(db, _job(db, job_id))
+def cancel_job(job_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    return jobs.cancel(db, _job(db, user.id, job_id))

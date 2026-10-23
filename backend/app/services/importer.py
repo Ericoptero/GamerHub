@@ -4,7 +4,10 @@ As duas fontes viram `GameRow` e passam por `upsert_rows`, que aplica o modo:
 - novos: ignora linhas cuja chave (nome normalizado, plataforma, status) já existe;
 - atualizar: sobrescreve os campos presentes na linha; se a chave não existe mas há
   exatamente um jogo com o mesmo (nome, plataforma), atualiza esse (mudança de status);
-- substituir: faz backup e apaga todos os jogos antes de importar.
+- substituir: faz backup e apaga todos os jogos do usuário antes de importar.
+
+Em qualquer modo, uma linha que só bate com um jogo "owned" (vindo de uma conta de loja)
+promove esse jogo em vez de criar um repetido.
 """
 
 from dataclasses import dataclass, field
@@ -104,6 +107,8 @@ def _apply(game: Game, row: GameRow, cat: CatalogCache, report: ImportReport, *,
     put("priority", row.priority)
     put("hltb_main_hours", row.hltb_hours)
     put("played_hours", row.played_hours)
+    if row.played_hours is not None:
+        game.played_hours_source = "user"
     if row.user_score is not None and not 1 <= row.user_score <= 10:
         report.warnings.append(f"{row.line}: nota {row.user_score} fora de 1–10, ignorada")
         row.user_score = None
@@ -143,7 +148,9 @@ def _preview_row(row: GameRow, platform: str, status: str, action: str) -> dict:
     }
 
 
-def upsert_rows(db: Session, rows: list[GameRow], mode: str = "novos", *, dry_run: bool = False) -> ImportReport:
+def upsert_rows(
+    db: Session, user_id: int, rows: list[GameRow], mode: str = "novos", *, dry_run: bool = False
+) -> ImportReport:
     if mode not in IMPORT_MODES:
         raise ValueError(f"modo inválido: {mode}")
     report = ImportReport()
@@ -152,11 +159,11 @@ def upsert_rows(db: Session, rows: list[GameRow], mode: str = "novos", *, dry_ru
             from app.services.backup import make_backup
 
             make_backup(reason="antes-de-substituir")
-        db.execute(delete(Game))
+        db.execute(delete(Game).where(Game.user_id == user_id))
         db.flush()
 
     cat = CatalogCache(db)
-    existing = list(db.scalars(select(Game)))
+    existing = list(db.scalars(select(Game).where(Game.user_id == user_id)))
     by_key: dict[str, Game] = {}
     by_name_platform: dict[tuple[str, int], list[Game]] = {}
     for g in existing:
@@ -177,8 +184,13 @@ def upsert_rows(db: Session, rows: list[GameRow], mode: str = "novos", *, dry_ru
         key = import_key(name_norm, platform.name, status)
 
         target = by_key.get(key)
-        if target is None and mode == "atualizar":
-            same = by_name_platform.get((name_norm, platform.id), [])
+        promote = False
+        same = by_name_platform.get((name_norm, platform.id), [])
+        owned = [g for g in same if g.status == "owned"]
+        if target is None and status != "owned" and len(owned) == 1:
+            target, promote = owned[0], True
+            by_key[key] = target
+        elif target is None and mode == "atualizar":
             if len(same) == 1:
                 target = same[0]
             elif len(same) > 1:
@@ -189,7 +201,7 @@ def upsert_rows(db: Session, rows: list[GameRow], mode: str = "novos", *, dry_ru
                 continue
 
         if target is not None:
-            if mode == "novos":
+            if mode == "novos" and not promote:
                 report.skipped += 1
                 if dry_run:
                     report.rows.append(_preview_row(row, platform.name, status, "ignorar"))
@@ -202,6 +214,7 @@ def upsert_rows(db: Session, rows: list[GameRow], mode: str = "novos", *, dry_ru
             continue
 
         game = Game(
+            user_id=user_id,
             name=row.name,
             name_norm=name_norm,
             platform=platform,
@@ -226,5 +239,5 @@ def upsert_rows(db: Session, rows: list[GameRow], mode: str = "novos", *, dry_ru
     return report
 
 
-def import_short_json(db: Session, items: list[dict], mode: str = "novos") -> ImportReport:
-    return upsert_rows(db, [row_from_short(it, i) for i, it in enumerate(items)], mode)
+def import_short_json(db: Session, user_id: int, items: list[dict], mode: str = "novos") -> ImportReport:
+    return upsert_rows(db, user_id, [row_from_short(it, i) for i, it in enumerate(items)], mode)

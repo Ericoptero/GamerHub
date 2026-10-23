@@ -1,7 +1,7 @@
 // Espelho manual de backend/app/schemas.py. Datas chegam como string ISO
 // (date: "2026-10-23"; datetime: "2026-10-23T12:00:00", em UTC e sem "Z").
 
-export type Status = "backlog" | "playing" | "done" | "dropped" | "hype";
+export type Status = "backlog" | "playing" | "done" | "dropped" | "hype" | "owned";
 export type Priority = "Alta" | "Media" | "Baixa";
 export type ProviderName = "igdb" | "rawg" | "hltb" | "metacritic";
 export type SearchProvider = "igdb" | "rawg";
@@ -348,4 +348,44 @@ export interface SheetCommit {
   sheets: SheetChoice[];
   mode: ImportMode;
   dry_run: boolean;
+}
+
+// ---------- usuários e login ----------
+
+export interface User {
+  id: number;
+  username: string;
+  display_name: string;
+  is_admin: boolean;
+}
+
+export interface UserAdmin extends User {
+  created_at: string;
+  last_login_at: string | null;
+  game_count: number;
+}
+
+export interface AuthMe {
+  auth_enabled: boolean;
+  signup_allowed: boolean;
+  needs_setup: boolean;
+  user: User | null;
+}
+
+export interface LoginIn {
+  username: string;
+  password: string;
+}
+
+export interface SignupIn extends LoginIn {
+  display_name?: string | null;
+}
+
+export interface UserCreate extends SignupIn {
+  is_admin?: boolean;
+}
+
+export interface UserPatch {
+  display_name?: string;
+  is_admin?: boolean;
 }

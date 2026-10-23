@@ -3,12 +3,14 @@ import logging
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
 from app import db as dbmod
-from app.api import catalog, games, integrations, io
+from app.api import auth, catalog, games, integrations, io, users
+from app.auth.sessions import COOKIE, resolve_token
 from app.config import get_settings
 from app.enrichment.jobs import worker
 from app.integrations.cache import purge_expired
@@ -55,11 +57,39 @@ async def lifespan(_app: FastAPI):
         await close_all()
 
 
+PUBLIC_API = ("/api/auth/", "/api/health")
+UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+APP_HEADER = "x-gamerhub"
+
+
+def install_auth_guard(app: FastAPI) -> None:
+    """Com o login ligado: resolve a sessão do cookie e barra /api e /media sem login.
+
+    Mutações exigem o cabeçalho X-GamerHub (o frontend sempre manda). Um formulário de outro
+    site não consegue mandar cabeçalho próprio, então isso, junto do cookie SameSite=Lax, barra CSRF.
+    """
+
+    @app.middleware("http")
+    async def auth_guard(request: Request, call_next):
+        path = request.url.path
+        is_api = path.startswith("/api/")
+        if is_api and request.method in UNSAFE_METHODS and request.headers.get(APP_HEADER) != "1":
+            return JSONResponse({"detail": "Requisição sem o cabeçalho do GamerHub"}, status_code=403)
+        token = request.cookies.get(COOKIE)
+        request.state.user_id = await run_in_threadpool(resolve_token, token) if token else None
+        protected = (is_api and not path.startswith(PUBLIC_API)) or path.startswith("/media/")
+        if protected and request.state.user_id is None:
+            return JSONResponse({"detail": "Faça login para continuar"}, status_code=401)
+        return await call_next(request)
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     settings.ensure_dirs()
     app = FastAPI(title="GamerHub", version="0.1.0", lifespan=lifespan)
-    for router in (catalog.router, games.router, integrations.router, io.router):
+    if settings.auth_enabled:
+        install_auth_guard(app)
+    for router in (auth.router, users.router, catalog.router, games.router, integrations.router, io.router):
         app.include_router(router)
     app.mount("/media", CachedStaticFiles(directory=settings.media_dir, check_dir=False), name="media")
 

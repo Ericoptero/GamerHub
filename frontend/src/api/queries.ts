@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 
 import { api, qs } from "./client";
 import type {
+  AuthMe,
   Candidate,
   Comment,
   Device,
@@ -14,6 +15,7 @@ import type {
   GamePatch,
   Genre,
   Job,
+  LoginIn,
   Meta,
   PendingLink,
   Platform,
@@ -21,7 +23,12 @@ import type {
   PlatformPatch,
   RefreshIn,
   SearchProvider,
+  SignupIn,
   Store,
+  User,
+  UserAdmin,
+  UserCreate,
+  UserPatch,
 } from "./types";
 
 export const keys = {
@@ -35,6 +42,8 @@ export const keys = {
   job: (id: number) => ["job", id] as const,
   jobs: ["jobs"] as const,
   pending: ["pending"] as const,
+  me: ["me"] as const,
+  users: ["users"] as const,
 };
 
 // ---------- leitura ----------
@@ -269,4 +278,62 @@ export function invalidateAfterJob(qc: QueryClient, gameIds: number[] = []) {
   qc.invalidateQueries({ queryKey: keys.pending });
   qc.invalidateQueries({ queryKey: keys.jobs });
   for (const id of gameIds) qc.invalidateQueries({ queryKey: keys.game(id) });
+}
+
+// ---------- login e usuários ----------
+
+export const useMe = () =>
+  useQuery({ queryKey: keys.me, queryFn: () => api.get<AuthMe>("/api/auth/me"), staleTime: 300_000 });
+
+/** Entrar/sair troca de dono: nada do cache do usuário anterior pode sobrar. */
+function startFresh(qc: QueryClient) {
+  qc.clear();
+  return qc.invalidateQueries({ queryKey: keys.me });
+}
+
+export function useLogin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: LoginIn) => api.post<User>("/api/auth/login", data),
+    onSuccess: () => startFresh(qc),
+  });
+}
+
+export function useSignup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: SignupIn) => api.post<User>("/api/auth/signup", data),
+    onSuccess: () => startFresh(qc),
+  });
+}
+
+export function useLogout() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: () => api.post<void>("/api/auth/logout"), onSuccess: () => startFresh(qc) });
+}
+
+export const useChangePassword = () =>
+  useMutation({
+    mutationFn: (data: { current_password: string; new_password: string }) =>
+      api.post<void>("/api/auth/password", data),
+  });
+
+export const useUsers = (enabled: boolean) =>
+  useQuery({ queryKey: keys.users, queryFn: () => api.get<UserAdmin[]>("/api/users"), enabled });
+
+export function useUserMutations() {
+  const qc = useQueryClient();
+  const done = () => qc.invalidateQueries({ queryKey: keys.users });
+  return {
+    create: useMutation({ mutationFn: (u: UserCreate) => api.post<UserAdmin>("/api/users", u), onSuccess: done }),
+    update: useMutation({
+      mutationFn: ({ id, patch }: { id: number; patch: UserPatch }) => api.patch<UserAdmin>(`/api/users/${id}`, patch),
+      onSuccess: done,
+    }),
+    resetPassword: useMutation({
+      mutationFn: ({ id, password }: { id: number; password: string }) =>
+        api.post<void>(`/api/users/${id}/password`, { password }),
+    }),
+    remove: useMutation({ mutationFn: (id: number) => api.del(`/api/users/${id}`), onSuccess: done }),
+  };
 }

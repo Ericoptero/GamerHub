@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.domain import PRIORITY_LABELS, STATUS_SINGULAR, normalize_title
+from app.domain import PRIORITY_LABELS, STATUS_SINGULAR, fold, normalize_title
 from app.models import Comment, Device, ExternalLink, Game, Genre, Media, Platform, Store, StoreReview
 from app.services.catalog import CatalogCache
 
@@ -15,7 +15,7 @@ EXPORT_VERSION = 1
 
 _GAME_FIELDS = (
     "name", "status", "priority", "hltb_main_hours", "hltb_extra_hours", "hltb_complete_hours", "played_hours",
-    "user_score", "review_text", "story_summary", "times_completed", "finished_at", "finished_label",
+    "played_hours_source", "user_score", "review_text", "story_summary", "times_completed", "finished_at", "finished_label",
     "release_date", "description", "storyline", "cover_url", "background_url", "metacritic_score",
     "metacritic_user_score", "metacritic_url", "metacritic_source", "tags", "developer", "publisher", "origin",
     "locked_fields", "import_key", "import_order", "created_at", "last_enriched_at",
@@ -35,8 +35,9 @@ def _pick(obj: object, fields: tuple[str, ...]) -> dict:
     return {f: _jsonable(getattr(obj, f)) for f in fields}
 
 
-def export_json(db: Session) -> dict:
-    games = db.scalars(select(Game).order_by(Game.import_order, Game.id)).all()
+def export_json(db: Session, user_id: int) -> dict:
+    """Biblioteca do usuário + catálogos compartilhados (plataformas, gêneros, lojas)."""
+    games = db.scalars(select(Game).where(Game.user_id == user_id).order_by(Game.import_order, Game.id)).all()
     return {
         "version": EXPORT_VERSION,
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -55,7 +56,7 @@ def export_json(db: Session) -> dict:
         "stores": [s.name for s in db.scalars(select(Store).order_by(Store.name))],
         "devices": [
             {"name": d.name, "kind": d.kind, "platforms": [p.name for p in d.platforms]}
-            for d in db.scalars(select(Device).order_by(Device.sort_order, Device.id))
+            for d in db.scalars(select(Device).where(Device.user_id == user_id).order_by(Device.sort_order, Device.id))
         ],
         "games": [
             {
@@ -81,27 +82,41 @@ def _parse_d(v: str | None) -> date | None:
     return date.fromisoformat(v) if v else None
 
 
-def restore_json(db: Session, data: dict) -> dict:
-    """Substitui todo o conteúdo pelo de um export.json (faz backup antes)."""
+def restore_json(db: Session, user_id: int, data: dict) -> dict:
+    """Substitui a biblioteca do usuário pela de um export.json (faz backup antes).
+
+    Plataformas, gêneros e lojas são de todos os usuários: só entram os que faltam.
+    """
     from app.services.backup import make_backup
 
     if data.get("version") != EXPORT_VERSION:
         raise ValueError(f"versão de export não suportada: {data.get('version')!r}")
     make_backup(reason="antes-de-restaurar")
-    for model in (Game, Device, Store, Genre, Platform):
-        db.execute(delete(model))
+    for model in (Game, Device):
+        db.execute(delete(model).where(model.user_id == user_id))
     db.flush()
 
-    for p in data.get("platforms", []):
-        db.add(Platform(**p))
-    for i, name in enumerate(data.get("genres", [])):
-        db.add(Genre(name=name, sort_order=i))
-    db.flush()
     cat = CatalogCache(db)
+    for p in data.get("platforms", []):
+        if fold(p["name"]) not in cat.platforms:
+            platform = Platform(**p)
+            db.add(platform)
+            db.flush()
+            cat.platforms[fold(platform.name)] = platform
+    for name in data.get("genres", []):
+        cat.genre(name)
     for name in data.get("stores", []):
         cat.store(name)
     for i, d in enumerate(data.get("devices", [])):
-        db.add(Device(name=d["name"], kind=d["kind"], sort_order=i, platforms=[cat.platform(p) for p in d["platforms"]]))
+        db.add(
+            Device(
+                user_id=user_id,
+                name=d["name"],
+                kind=d["kind"],
+                sort_order=i,
+                platforms=[cat.platform(p) for p in d["platforms"]],
+            )
+        )
 
     for raw in data.get("games", []):
         fields = {f: raw.get(f) for f in _GAME_FIELDS}
@@ -113,7 +128,9 @@ def restore_json(db: Session, data: dict) -> dict:
             del fields["created_at"]
         fields["tags"] = fields["tags"] or []
         fields["locked_fields"] = fields["locked_fields"] or []
-        game = Game(**fields, name_norm=normalize_title(raw["name"]), platform=cat.platform(raw["platform"]))
+        game = Game(
+            **fields, user_id=user_id, name_norm=normalize_title(raw["name"]), platform=cat.platform(raw["platform"])
+        )
         game.genre = cat.genre(raw.get("genre"))[0]
         game.stores = cat.stores_from(raw.get("stores", []))
         game.comments = [Comment(body=c["body"], created_at=_parse_dt(c["created_at"])) for c in raw.get("comments", [])]
@@ -139,12 +156,12 @@ def _num(v: float | int | None) -> str:
     return f"{v:g}".replace(".", ",")
 
 
-def export_csv(db: Session) -> str:
+def export_csv(db: Session, user_id: int) -> str:
     buf = io.StringIO()
     buf.write("﻿")  # BOM para o Excel reconhecer UTF-8
     w = csv.writer(buf, delimiter=";", lineterminator="\r\n")
     w.writerow(CSV_HEADERS)
-    for g in db.scalars(select(Game).order_by(Game.import_order, Game.id)):
+    for g in db.scalars(select(Game).where(Game.user_id == user_id).order_by(Game.import_order, Game.id)):
         d = g.release_date if g.status == "hype" else g.finished_at
         w.writerow(
             [

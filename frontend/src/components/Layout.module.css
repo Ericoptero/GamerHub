@@ -78,6 +78,79 @@
   text-decoration: none;
 }
 
+.userMenu {
+  position: relative;
+}
+
+.userButton {
+  list-style: none;
+  gap: 8px;
+}
+
+.userButton::-webkit-details-marker {
+  display: none;
+}
+
+.userName {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+  z-index: 20;
+}
+
+.menuHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px 10px;
+  font-weight: 700;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.menuHead :global(.muted) {
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menuItem:hover,
+.menuItem:focus-visible {
+  background: var(--bg-chip);
+}
+
 @media (max-width: 640px) {
   .header {
     padding: 10px 12px;
@@ -105,5 +178,9 @@
   .add {
     width: var(--tap);
     padding: 0;
+  }
+
+  .userName {
+    display: none;
   }
 }

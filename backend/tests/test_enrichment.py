@@ -106,7 +106,7 @@ def fakes(db, monkeypatch):
 
 @pytest.fixture
 def alien(db, planilha, fakes):
-    import_short_json(db, planilha)
+    import_short_json(db, 1, planilha)
     game = db.scalars(select(Game).where(Game.name == "Alien: Isolation")).one()
     return game.id
 
@@ -198,9 +198,9 @@ async def test_disabled_provider_is_skipped(db, alien, fakes):
 
 
 async def test_batch_job_resumes_and_skips_done(db, alien, fakes):
-    ids = jobs.select_game_ids(db, EnrichIn(scope="missing"))
+    ids = jobs.select_game_ids(db, 1, EnrichIn(scope="missing"))
     assert len(ids) == 240
-    job = jobs.request_enrich(db, EnrichIn(game_ids=ids[:3]))
+    job = jobs.request_enrich(db, 1, EnrichIn(game_ids=ids[:3]))
     job.params = {**job.params, "done": [ids[0]]}  # simula restart após o 1º jogo
     job.status = "running"
     db.commit()
@@ -245,7 +245,7 @@ async def test_worker_runs_refresh_while_batch_is_busy(db, alien, fakes, monkeyp
     worker.start()
     try:
         monkeypatch.setattr(jobs, "worker", worker)
-        batch = jobs.request_enrich(db, EnrichIn(game_ids=[alien]))
+        batch = jobs.request_enrich(db, 1, EnrichIn(game_ids=[alien]))
         refresh = jobs.request_refresh(db, db.get(Game, alien), RefreshIn(providers=["hltb"]))
         for _ in range(100):
             await asyncio.sleep(0.02)

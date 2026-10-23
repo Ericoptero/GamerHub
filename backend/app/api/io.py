@@ -7,7 +7,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Qu
 from fastapi.responses import FileResponse, JSONResponse, Response
 from sqlalchemy.orm import Session
 
+from app.auth.deps import current_user, require_admin
 from app.db import get_db
+from app.models import User
 from app.services import sheet_import
 from app.services.backup import backup_to
 from app.services.exporter import export_csv, export_json, restore_json
@@ -30,6 +32,7 @@ async def import_json(
     file: UploadFile = File(...),
     mode: str = Query("novos"),
     db: Session = Depends(get_db),
+    user: User = Depends(current_user),
 ):
     """Aceita o JSON curto da planilha (lista de {n, p, g, st…}) ou um export.json completo."""
     if mode not in IMPORT_MODES:
@@ -42,17 +45,17 @@ async def import_json(
         if mode != "substituir":
             raise HTTPException(422, "Um export.json completo só pode ser importado no modo 'substituir'")
         try:
-            restored = restore_json(db, payload)
+            restored = restore_json(db, user.id, payload)
         except (ValueError, KeyError) as e:
             raise HTTPException(422, f"Export inválido: {e}") from None
         return ImportReport(created=restored["games"])
     if not isinstance(payload, list):
         raise HTTPException(422, "Esperava uma lista de jogos ou um export.json")
-    return import_short_json(db, payload, mode)
+    return import_short_json(db, user.id, payload, mode)
 
 
 @router.post("/import/sheet/preview", response_model=sheet_import.SheetPreview)
-async def sheet_preview(file: UploadFile = File(...)):
+async def sheet_preview(file: UploadFile = File(...), _user: User = Depends(current_user)):
     data = await _read_upload(file)
     try:
         return sheet_import.preview(file.filename or "planilha", data)
@@ -61,9 +64,9 @@ async def sheet_preview(file: UploadFile = File(...)):
 
 
 @router.post("/import/sheet/commit", response_model=ImportReport)
-def sheet_commit(data: sheet_import.SheetCommit, db: Session = Depends(get_db)):
+def sheet_commit(data: sheet_import.SheetCommit, db: Session = Depends(get_db), user: User = Depends(current_user)):
     try:
-        return sheet_import.commit(db, data)
+        return sheet_import.commit(db, user.id, data)
     except (ValueError, FileNotFoundError) as e:
         raise HTTPException(422, str(e)) from None
 
@@ -73,24 +76,25 @@ def _stamp() -> str:
 
 
 @router.get("/export.json")
-def download_json(db: Session = Depends(get_db)):
+def download_json(db: Session = Depends(get_db), user: User = Depends(current_user)):
     return JSONResponse(
-        export_json(db),
+        export_json(db, user.id),
         headers={"Content-Disposition": f'attachment; filename="gamerhub-{_stamp()}.json"'},
     )
 
 
 @router.get("/export.csv")
-def download_csv(db: Session = Depends(get_db)):
+def download_csv(db: Session = Depends(get_db), user: User = Depends(current_user)):
     return Response(
-        export_csv(db).encode("utf-8"),
+        export_csv(db, user.id).encode("utf-8"),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="gamerhub-{_stamp()}.csv"'},
     )
 
 
 @router.get("/backup.sqlite")
-def download_backup(background: BackgroundTasks):
+def download_backup(background: BackgroundTasks, _admin: User = Depends(require_admin)):
+    """O banco inteiro: dados de todos os usuários, hashes de senha e tokens das lojas."""
     tmp = Path(tempfile.mkdtemp()) / f"gamerhub-{_stamp()}.db"
     backup_to(tmp)
     background.add_task(lambda: (tmp.unlink(missing_ok=True), tmp.parent.rmdir()))

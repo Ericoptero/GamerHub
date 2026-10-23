@@ -96,6 +96,27 @@ Em **Integrações → Exportar** estão:
 
 Para restaurar um `backup.sqlite`, pare o container, substitua `data/gamerhub.db` e suba de novo.
 
+### Login e vários usuários (opcional)
+
+Por padrão o app é de uma pessoa só e abre direto, sem login. Para ligar o login, coloque no `.env`:
+
+```env
+AUTH_ENABLED=true
+AUTH_ALLOW_SIGNUP=true   # false fecha o cadastro; aí só um administrador cria contas
+```
+
+- **Primeiro acesso:** a primeira conta criada vira administradora e fica com a biblioteca que já existia.
+- **Biblioteca de cada um:** jogos, notas, comentários, aparelhos e contas de loja são de cada usuário.
+  Plataformas, gêneros e etiquetas de loja são compartilhados.
+- **Administrador:** em **Usuários** (menu da conta), cria contas, redefine senhas, dá ou tira admin
+  e remove usuários junto com a biblioteca deles.
+- **Desligar de novo:** com `AUTH_ENABLED=false`, o app volta a abrir direto com a biblioteca da
+  primeira conta.
+- **Sessão:** o cookie dura `AUTH_SESSION_DAYS` (30 dias) e renova com o uso. Se servir por HTTPS,
+  ligue `AUTH_COOKIE_SECURE=true`.
+- **`backup.sqlite`:** com o login ligado, só administradores baixam. Ele contém os dados de todos,
+  os hashes de senha e os tokens das lojas.
+
 ## Desenvolvimento
 
 Requisitos: Python 3.12+ com [uv](https://docs.astral.sh/uv/) e Node 22.22+ (ou 24).

@@ -220,7 +220,7 @@ def row_from_cells(cells: list[object], mapping: dict[str, int], status: str | N
     )
 
 
-def commit(db: Session, data: SheetCommit) -> ImportReport:
+def commit(db: Session, user_id: int, data: SheetCommit) -> ImportReport:
     if data.mode not in IMPORT_MODES:
         raise ValueError(f"modo deve ser um de {IMPORT_MODES}")
     path = _find_upload(data.token)
@@ -235,7 +235,7 @@ def commit(db: Session, data: SheetCommit) -> ImportReport:
         _headers, body = _split_header(book[choice.name])
         for i, cells in enumerate(body):
             rows.append(row_from_cells(cells, choice.mapping, status, f"{choice.name} linha {i + 2}"))
-    report = upsert_rows(db, rows, data.mode, dry_run=data.dry_run)
+    report = upsert_rows(db, user_id, rows, data.mode, dry_run=data.dry_run)
     if not data.dry_run:
         path.unlink(missing_ok=True)
     return report

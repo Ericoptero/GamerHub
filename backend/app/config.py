@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     worker_enabled: bool = True
     backup_keep: int = 7
 
+    # Login opcional: desligado, o app é de um usuário só e abre direto (como sempre foi).
+    auth_enabled: bool = False
+    auth_allow_signup: bool = True
+    auth_session_days: int = 30
+    auth_cookie_secure: bool = False
+
     @property
     def db_path(self) -> Path:
         return self.data_dir / "gamerhub.db"

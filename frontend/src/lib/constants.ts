@@ -1,6 +1,6 @@
 import type { Priority, Status } from "../api/types";
 
-export const STATUS_ORDER: Status[] = ["backlog", "playing", "done", "dropped", "hype"];
+export const STATUS_ORDER: Status[] = ["backlog", "playing", "done", "dropped", "hype", "owned"];
 
 export const STATUS: Record<Status, string> = {
   backlog: "Lista de espera",
@@ -8,6 +8,7 @@ export const STATUS: Record<Status, string> = {
   done: "Finalizados",
   dropped: "Dropados",
   hype: "Hype",
+  owned: "Biblioteca",
 };
 
 export const STATUS1: Record<Status, string> = {
@@ -16,6 +17,7 @@ export const STATUS1: Record<Status, string> = {
   done: "Finalizado",
   dropped: "Dropado",
   hype: "Hype",
+  owned: "Na biblioteca",
 };
 
 export const STATUS_DOT: Record<Status, string> = {
@@ -24,6 +26,7 @@ export const STATUS_DOT: Record<Status, string> = {
   done: "#C792FF",
   dropped: "#FF8A8A",
   hype: "#FFB454",
+  owned: "#7FD1C7",
 };
 
 export const PRIO: Record<Priority, number> = { Alta: 0, Media: 1, Baixa: 2 };
@@ -57,6 +60,9 @@ export const ORIGIN_LABEL: Record<string, string> = {
   manual: "Manual",
   igdb: "Integração · IGDB",
   rawg: "Integração · RAWG",
+  steam: "Conta Steam",
+  epic: "Conta Epic",
+  gog: "Conta GOG",
 };
 
 export function mcColor(mc: number | null | undefined): string {

@@ -102,8 +102,8 @@ worker = Worker()
 # ---------- criação ----------
 
 
-def _create(db: Session, kind: str, params: dict, priority: int, total: int) -> Job:
-    job = Job(kind=kind, status="queued", priority=priority, params=params, total=total, log=[])
+def _create(db: Session, user_id: int, kind: str, params: dict, priority: int, total: int) -> Job:
+    job = Job(user_id=user_id, kind=kind, status="queued", priority=priority, params=params, total=total, log=[])
     db.add(job)
     db.commit()
     worker.submit(job.id, priority)
@@ -118,13 +118,14 @@ def request_refresh(db: Session, game: Game, data: RefreshIn) -> Job:
         "rematch": data.rematch,
         "done": [],
     }
-    return _create(db, "refresh", params, REFRESH_PRIORITY, 1)
+    return _create(db, game.user_id, "refresh", params, REFRESH_PRIORITY, 1)
 
 
-def select_game_ids(db: Session, data: EnrichIn) -> list[int]:
+def select_game_ids(db: Session, user_id: int, data: EnrichIn) -> list[int]:
+    mine = select(Game.id).where(Game.user_id == user_id).order_by(Game.id)
     if data.game_ids:
-        return list(db.scalars(select(Game.id).where(Game.id.in_(data.game_ids)).order_by(Game.id)))
-    q = select(Game.id).order_by(Game.id)
+        return list(db.scalars(mine.where(Game.id.in_(data.game_ids))))
+    q = mine
     if data.scope == "missing":
         q = q.where(Game.last_enriched_at.is_(None))
     elif data.scope == "stale":
@@ -132,10 +133,10 @@ def select_game_ids(db: Session, data: EnrichIn) -> list[int]:
     return list(db.scalars(q))
 
 
-def request_enrich(db: Session, data: EnrichIn) -> Job:
-    ids = select_game_ids(db, data)
+def request_enrich(db: Session, user_id: int, data: EnrichIn) -> Job:
+    ids = select_game_ids(db, user_id, data)
     params = {"game_ids": ids, "providers": data.providers, "force": data.force, "rematch": False, "done": []}
-    return _create(db, "enrich", params, BATCH_PRIORITY, len(ids))
+    return _create(db, user_id, "enrich", params, BATCH_PRIORITY, len(ids))
 
 
 def set_link(db: Session, game: Game, provider: str, external_id: str | None, status: str) -> None:

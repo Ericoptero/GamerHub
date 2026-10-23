@@ -64,11 +64,11 @@ def test_xlsx_preview_dry_run_and_commit(db):
     assert done.mapping["date"] == 2 and done.mapping["played_hours"] == 3
 
     choices = [sheet_import.SheetChoice(name=s.name, mapping=s.mapping) for s in prev.sheets]
-    dry = sheet_import.commit(db, sheet_import.SheetCommit(token=prev.token, sheets=choices, dry_run=True))
+    dry = sheet_import.commit(db, 1, sheet_import.SheetCommit(token=prev.token, sheets=choices, dry_run=True))
     assert dry.created == 4 and [r["action"] for r in dry.rows] == ["criar"] * 4
     assert db.scalar(select(Game.id)) is None  # simulação não grava
 
-    report = sheet_import.commit(db, sheet_import.SheetCommit(token=prev.token, sheets=choices))
+    report = sheet_import.commit(db, 1, sheet_import.SheetCommit(token=prev.token, sheets=choices))
     assert report.created == 4
     games = {g.name: g for g in db.scalars(select(Game))}
     hk = games["Hollow Knight"]
@@ -89,6 +89,7 @@ def test_csv_semicolon_cp1252(db):
     assert sheet.mapping == {"name": 0, "platform": 1, "status": 2, "user_score": 3}
     report = sheet_import.commit(
         db,
+        1,
         sheet_import.SheetCommit(
             token=prev.token, sheets=[sheet_import.SheetChoice(name=sheet.name, mapping=sheet.mapping)]
         ),

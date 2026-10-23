@@ -3,10 +3,11 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth.deps import current_user, require_admin
 from app.db import get_db
 from app.domain import DEVICE_KINDS, PRIORITY_LABELS, STATUS_LABELS, STATUS_SINGULAR, fold
 from app.integrations.registry import providers_status
-from app.models import Device, Game, Genre, Platform, Store
+from app.models import Device, Game, Genre, Platform, Store, User
 from app.schemas import (
     DeviceIn,
     DeviceOut,
@@ -42,14 +43,19 @@ def meta():
 # ---------- plataformas ----------
 
 
-def _platform_out(db: Session, p: Platform) -> PlatformOut:
-    count = db.scalar(select(func.count(Game.id)).where(Game.platform_id == p.id)) or 0
+# Plataformas são compartilhadas entre usuários; a contagem mostrada é a de jogos de quem pergunta.
+def _platform_out(db: Session, user_id: int, p: Platform) -> PlatformOut:
+    count = db.scalar(select(func.count(Game.id)).where(Game.platform_id == p.id, Game.user_id == user_id)) or 0
     return PlatformOut.model_validate(p).model_copy(update={"game_count": count})
 
 
 @router.get("/platforms", response_model=list[PlatformOut])
-def list_platforms(db: Session = Depends(get_db)):
-    counts = dict(db.execute(select(Game.platform_id, func.count(Game.id)).group_by(Game.platform_id)).all())
+def list_platforms(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    counts = dict(
+        db.execute(
+            select(Game.platform_id, func.count(Game.id)).where(Game.user_id == user.id).group_by(Game.platform_id)
+        ).all()
+    )
     platforms = db.scalars(select(Platform).order_by(Platform.name)).all()
     return [PlatformOut.model_validate(p).model_copy(update={"game_count": counts.get(p.id, 0)}) for p in platforms]
 
@@ -61,17 +67,19 @@ def _ensure_unique_platform(db: Session, name: str, exclude_id: int | None = Non
 
 
 @router.post("/platforms", response_model=PlatformOut, status_code=201)
-def create_platform(data: PlatformIn, db: Session = Depends(get_db)):
+def create_platform(data: PlatformIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
     _ensure_unique_platform(db, data.name)
     order = (db.scalar(select(func.max(Platform.sort_order))) or 0) + 1
     p = Platform(**data.model_dump() | {"name": data.name.strip()}, sort_order=order)
     db.add(p)
     db.commit()
-    return _platform_out(db, p)
+    return _platform_out(db, user.id, p)
 
 
 @router.patch("/platforms/{platform_id}", response_model=PlatformOut)
-def patch_platform(platform_id: int, data: PlatformPatch, db: Session = Depends(get_db)):
+def patch_platform(
+    platform_id: int, data: PlatformPatch, db: Session = Depends(get_db), user: User = Depends(current_user)
+):
     p = db.get(Platform, platform_id)
     if p is None:
         raise HTTPException(404, "Plataforma não encontrada")
@@ -84,14 +92,15 @@ def patch_platform(platform_id: int, data: PlatformPatch, db: Session = Depends(
             _ensure_unique_platform(db, value, exclude_id=p.id)
         setattr(p, field, value)
     db.commit()
-    return _platform_out(db, p)
+    return _platform_out(db, user.id, p)
 
 
 @router.delete("/platforms/{platform_id}", status_code=204)
-def delete_platform(platform_id: int, db: Session = Depends(get_db)):
+def delete_platform(platform_id: int, db: Session = Depends(get_db), _user: User = Depends(current_user)):
     p = db.get(Platform, platform_id)
     if p is None:
         raise HTTPException(404, "Plataforma não encontrada")
+    # Conta os jogos de todos os usuários: a plataforma é de todos.
     count = db.scalar(select(func.count(Game.id)).where(Game.platform_id == p.id)) or 0
     if count:
         raise HTTPException(409, f"{count} jogo(s) usam {p.name}. Mude a plataforma deles antes de remover.")
@@ -114,25 +123,37 @@ def _platforms(db: Session, ids: list[int]) -> list[Platform]:
     return list(found)
 
 
+def _device(db: Session, user_id: int, device_id: int) -> Device:
+    d = db.get(Device, device_id)
+    if d is None or d.user_id != user_id:
+        raise HTTPException(404, "Aparelho não encontrado")
+    return d
+
+
 @router.get("/devices", response_model=list[DeviceOut])
-def list_devices(db: Session = Depends(get_db)):
-    return [_device_out(d) for d in db.scalars(select(Device).order_by(Device.sort_order, Device.id))]
+def list_devices(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    q = select(Device).where(Device.user_id == user.id).order_by(Device.sort_order, Device.id)
+    return [_device_out(d) for d in db.scalars(q)]
 
 
 @router.post("/devices", response_model=DeviceOut, status_code=201)
-def create_device(data: DeviceIn, db: Session = Depends(get_db)):
-    order = (db.scalar(select(func.max(Device.sort_order))) or 0) + 1
-    d = Device(name=data.name.strip(), kind=data.kind, sort_order=order, platforms=_platforms(db, data.platform_ids))
+def create_device(data: DeviceIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    order = (db.scalar(select(func.max(Device.sort_order)).where(Device.user_id == user.id)) or 0) + 1
+    d = Device(
+        user_id=user.id,
+        name=data.name.strip(),
+        kind=data.kind,
+        sort_order=order,
+        platforms=_platforms(db, data.platform_ids),
+    )
     db.add(d)
     db.commit()
     return _device_out(d)
 
 
 @router.patch("/devices/{device_id}", response_model=DeviceOut)
-def patch_device(device_id: int, data: DevicePatch, db: Session = Depends(get_db)):
-    d = db.get(Device, device_id)
-    if d is None:
-        raise HTTPException(404, "Aparelho não encontrado")
+def patch_device(device_id: int, data: DevicePatch, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    d = _device(db, user.id, device_id)
     if data.name:
         d.name = data.name.strip()
     if data.kind:
@@ -144,10 +165,8 @@ def patch_device(device_id: int, data: DevicePatch, db: Session = Depends(get_db
 
 
 @router.delete("/devices/{device_id}", status_code=204)
-def delete_device(device_id: int, db: Session = Depends(get_db)):
-    d = db.get(Device, device_id)
-    if d is None:
-        raise HTTPException(404, "Aparelho não encontrado")
+def delete_device(device_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    d = _device(db, user.id, device_id)
     db.delete(d)
     db.commit()
     return Response(status_code=204)
@@ -174,7 +193,8 @@ def create_store(data: StoreIn, db: Session = Depends(get_db)):
 
 
 @router.delete("/stores/{store_id}", status_code=204)
-def delete_store(store_id: int, db: Session = Depends(get_db)):
+def delete_store(store_id: int, db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
+    """Lojas são compartilhadas: remover tira a etiqueta dos jogos de todo mundo."""
     s = db.get(Store, store_id)
     if s is None:
         raise HTTPException(404, "Loja não encontrada")

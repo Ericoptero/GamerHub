@@ -96,7 +96,7 @@ describe("library selectors", () => {
   });
 
   it("conta por status e por aparelho", () => {
-    expect(statusCounts(games)).toEqual({ backlog: 5, playing: 0, done: 4, dropped: 0, hype: 1 });
+    expect(statusCounts(games)).toEqual({ backlog: 5, playing: 0, done: 4, dropped: 0, hype: 1, owned: 0 });
     const backlog = games.filter((g) => g.status === "backlog");
     expect(deviceCounts(backlog, devices).get(11)).toBe(2);
     expect(playableInQueue(games, devices[0])).toBe(3);

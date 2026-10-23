@@ -8,6 +8,7 @@ import typer
 
 from app import db as dbmod
 from app.config import get_settings
+from app.domain import DEFAULT_USER_ID
 from app.migrate import migrate
 from app.seed.seed_data import seed_catalogs
 
@@ -24,7 +25,11 @@ def _setup() -> None:
 
 
 @cli.command("import-json")
-def import_json(path: Path, mode: str = typer.Option("novos", help="novos | atualizar | substituir")):
+def import_json(
+    path: Path,
+    mode: str = typer.Option("novos", help="novos | atualizar | substituir"),
+    user: int = typer.Option(DEFAULT_USER_ID, help="id do usuário dono dos jogos"),
+):
     """Importa o JSON curto da planilha (n, p, g, st…) ou um export.json completo."""
     from app.services.exporter import restore_json
     from app.services.importer import import_short_json
@@ -33,9 +38,9 @@ def import_json(path: Path, mode: str = typer.Option("novos", help="novos | atua
     data = json.loads(path.read_text(encoding="utf-8-sig"))
     with dbmod.new_session() as db:
         if isinstance(data, dict):
-            typer.echo(restore_json(db, data))
+            typer.echo(restore_json(db, user, data))
             return
-        report = import_short_json(db, data, mode)
+        report = import_short_json(db, user, data, mode)
     typer.echo(f"criados {report.created} · atualizados {report.updated} · ignorados {report.skipped}")
     for w in report.warnings:
         typer.echo(f"  aviso: {w}")
@@ -46,6 +51,7 @@ def enrich(
     scope: str = typer.Option("missing", help="missing | stale | all"),
     provider: list[str] = typer.Option(None, help="igdb, rawg, hltb, metacritic (padrão: todos)"),
     force: bool = typer.Option(False, help="ignora o cache"),
+    user: int = typer.Option(DEFAULT_USER_ID, help="id do usuário dono dos jogos"),
 ):
     """Enriquece os jogos agora, neste processo (o app não precisa estar rodando)."""
     from app.enrichment import jobs
@@ -55,7 +61,7 @@ def enrich(
 
     _setup()
     with dbmod.new_session() as db:
-        job = jobs.request_enrich(db, EnrichIn(scope=scope, providers=provider or None, force=force))  # type: ignore[arg-type]
+        job = jobs.request_enrich(db, user, EnrichIn(scope=scope, providers=provider or None, force=force))  # type: ignore[arg-type]
         job_id, total = job.id, job.total
     typer.echo(f"job {job_id}: {total} jogo(s)")
 

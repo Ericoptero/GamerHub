@@ -8,7 +8,7 @@ from app.services.importer import import_short_json
 
 
 def test_import_planilha_counts(db, planilha):
-    report = import_short_json(db, planilha)
+    report = import_short_json(db, 1, planilha)
     assert report.created == 240
     assert report.new_genres == []
 
@@ -27,7 +27,7 @@ def test_import_planilha_counts(db, planilha):
 
 
 def test_import_dates_and_unknown_hours(db, planilha):
-    import_short_json(db, planilha)
+    import_short_json(db, 1, planilha)
     games = db.scalars(select(Game)).all()
     labelled = [g for g in games if g.finished_label == "Antes de 2022"]
     assert len(labelled) == 46
@@ -44,7 +44,7 @@ def test_import_dates_and_unknown_hours(db, planilha):
 
 
 def test_import_stores_normalized(db, planilha):
-    import_short_json(db, planilha)
+    import_short_json(db, 1, planilha)
     names = sorted(s.name for s in db.scalars(select(Store)))
     assert names.count("Steam") == 1 and names.count("Epic") == 1
     both = [g for g in db.scalars(select(Game)) if {s.name for s in g.stores} == {"Steam", "Epic"}]
@@ -52,20 +52,20 @@ def test_import_stores_normalized(db, planilha):
 
 
 def test_duplicates_kept_and_reimport_is_noop(db, planilha):
-    import_short_json(db, planilha)
+    import_short_json(db, 1, planilha)
     hades = db.scalars(select(Game).where(Game.name == "Hades")).all()
     assert sorted(g.status for g in hades) == ["backlog", "done"]
 
-    again = import_short_json(db, planilha, mode="novos")
+    again = import_short_json(db, 1, planilha, mode="novos")
     assert again.created == 0 and again.skipped == 240
 
 
 def test_update_mode_moves_status(db, planilha):
-    import_short_json(db, planilha)
+    import_short_json(db, 1, planilha)
     game = db.scalars(select(Game).where(Game.name == "Alien: Isolation")).one()
     assert game.status == "backlog"
     report = import_short_json(
-        db, [{"n": "Alien: Isolation", "p": "PC", "st": "done", "d": "2026-10-20", "t": 30, "u": 8}], mode="atualizar"
+        db, 1, [{"n": "Alien: Isolation", "p": "PC", "st": "done", "d": "2026-10-20", "t": 30, "u": 8}], mode="atualizar"
     )
     assert report.updated == 1 and report.created == 0
     db.refresh(game)
