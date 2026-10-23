@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 
 import { initials, palette } from "../lib/cover";
 import styles from "./GameCover.module.css";
@@ -17,6 +17,8 @@ interface Props {
 export function GameCover({ name, platform, cover, size = "card", footer, alt = "" }: Props) {
   const [bg, band] = palette(name, platform);
   const style = { "--c0": bg, "--c1": band } as CSSProperties;
+  // Capa que não carrega (ex.: arte da loja que mudou de endereço): fica a capa gerada.
+  const [broken, setBroken] = useState<string | null>(null);
   return (
     <span className={`${styles.cover} ${size === "hero" ? styles.hero : ""}`} style={style}>
       <span className={styles.initials} aria-hidden="true">
@@ -25,7 +27,16 @@ export function GameCover({ name, platform, cover, size = "card", footer, alt = 
       <span className={styles.band} />
       <span className={styles.platform}>{platform}</span>
       <span className={styles.name}>{name}</span>
-      {cover && <img className={styles.img} src={cover} alt={alt} loading="lazy" decoding="async" />}
+      {cover && cover !== broken && (
+        <img
+          className={styles.img}
+          src={cover}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          onError={() => setBroken(cover)}
+        />
+      )}
       {footer && (
         <span className={styles.footer}>
           <span className={styles.footerLeft}>{footer.left}</span>

@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 
 import { api, qs } from "./client";
 import type {
+  Account,
+  AccountCreate,
+  AccountPatch,
   AuthMe,
   Candidate,
   Comment,
@@ -25,6 +28,7 @@ import type {
   SearchProvider,
   SignupIn,
   Store,
+  StoreName,
   User,
   UserAdmin,
   UserCreate,
@@ -44,6 +48,7 @@ export const keys = {
   pending: ["pending"] as const,
   me: ["me"] as const,
   users: ["users"] as const,
+  accounts: ["accounts"] as const,
 };
 
 // ---------- leitura ----------
@@ -277,7 +282,65 @@ export function invalidateAfterJob(qc: QueryClient, gameIds: number[] = []) {
   qc.invalidateQueries({ queryKey: keys.games });
   qc.invalidateQueries({ queryKey: keys.pending });
   qc.invalidateQueries({ queryKey: keys.jobs });
+  qc.invalidateQueries({ queryKey: keys.accounts });
   for (const id of gameIds) qc.invalidateQueries({ queryKey: keys.game(id) });
+}
+
+// ---------- contas de loja ----------
+
+export const useAccounts = () =>
+  useQuery({ queryKey: keys.accounts, queryFn: () => api.get<Account[]>("/api/accounts"), staleTime: 60_000 });
+
+export const loginUrl = (store: StoreName) =>
+  api.get<{ url: string }>(`/api/accounts/login-url${qs({ store })}`).then((r) => r.url);
+
+export function useAccountMutations() {
+  const qc = useQueryClient();
+  const done = () => {
+    qc.invalidateQueries({ queryKey: keys.accounts });
+    qc.invalidateQueries({ queryKey: keys.jobs });
+  };
+  const changed = () => {
+    done();
+    qc.invalidateQueries({ queryKey: keys.games });
+  };
+  return {
+    create: useMutation({ mutationFn: (a: AccountCreate) => api.post<Account>("/api/accounts", a), onSuccess: done }),
+    update: useMutation({
+      mutationFn: ({ id, patch }: { id: number; patch: AccountPatch }) => api.patch<Account>(`/api/accounts/${id}`, patch),
+      onSuccess: changed,
+    }),
+    reconnect: useMutation({
+      mutationFn: ({ id, ref }: { id: number; ref: string }) => api.post<Account>(`/api/accounts/${id}/reconnect`, { ref }),
+      onSuccess: done,
+    }),
+    unignore: useMutation({ mutationFn: (id: number) => api.post<Account>(`/api/accounts/${id}/unignore`), onSuccess: done }),
+    remove: useMutation({ mutationFn: (id: number) => api.del(`/api/accounts/${id}`), onSuccess: changed }),
+  };
+}
+
+export function useSyncAccounts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (accountIds?: number[]) => api.post<Job>("/api/accounts/sync", { account_ids: accountIds ?? null }),
+    onSuccess: (job) => {
+      qc.setQueryData(keys.job(job.id), job);
+      qc.invalidateQueries({ queryKey: keys.jobs });
+    },
+  });
+}
+
+export function useMergeGame(targetId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sourceId: number) => api.post<GameDetail>(`/api/games/${targetId}/merge`, { source_id: sourceId }),
+    onSuccess: (game, sourceId) => {
+      qc.setQueryData(keys.game(game.id), game);
+      qc.removeQueries({ queryKey: keys.game(sourceId) });
+      qc.invalidateQueries({ queryKey: keys.games });
+      qc.invalidateQueries({ queryKey: keys.accounts });
+    },
+  });
 }
 
 // ---------- login e usuários ----------

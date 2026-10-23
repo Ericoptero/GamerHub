@@ -1,0 +1,113 @@
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg-inset);
+}
+
+.info {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.name :global(.btn-icon) {
+  width: 32px;
+  height: 32px;
+}
+
+.rename {
+  display: flex;
+  gap: 8px;
+  max-width: 360px;
+}
+
+.status {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.status[data-status="ok"] {
+  color: var(--ok);
+}
+
+.status[data-status="error"],
+.status[data-status="reauth"] {
+  color: var(--warn);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.add :global(.btn) {
+  gap: 8px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.form a[aria-disabled="true"] {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+@media (max-width: 640px) {
+  .actions {
+    width: 100%;
+  }
+}

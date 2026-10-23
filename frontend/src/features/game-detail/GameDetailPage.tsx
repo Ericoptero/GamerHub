@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 
 import { ApiError, errorMessage } from "../../api/client";
 import { useDeleteGame, useDevices, useGame, useUpdateGame } from "../../api/queries";
@@ -18,6 +18,7 @@ import styles from "./GameDetail.module.css";
 import { Hero } from "./Hero";
 import { MatchReview, StoreReviewsSection } from "./IntegrationSection";
 import { MediaSection } from "./MediaSection";
+import { MergeDialog } from "./MergeDialog";
 import { ReviewSection } from "./ReviewSection";
 
 const ENRICH_POLL_MS = 2000;
@@ -51,6 +52,7 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
   const navigate = useNavigate();
   const [dialog, confirm] = useConfirm();
   const [editing, setEditing] = useState(false);
+  const [merging, setMerging] = useState(false);
   const watcher = useJobWatcher([game.id]);
   const [c0, c1] = palette(game.name, game.platform);
   const ambiguous = game.links.filter((l) => l.status === "ambiguous" && l.candidates.length > 0);
@@ -72,6 +74,7 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
         <>
           <strong>{game.name}</strong> ({game.platform}) sai da biblioteca junto com review, comentários e mídia. Os backups
           diários continuam com ele.
+          {game.ownerships.length > 0 && " A sincronização das contas de loja não vai trazê-lo de volta."}
         </>
       ),
       confirmLabel: "Excluir",
@@ -97,6 +100,24 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
               Buscando capa, descrição, HLTB e Metacritic nas integrações…
             </p>
           )}
+          {game.duplicates.length > 0 && (
+            <div className={styles.dupes} role="note">
+              <span>
+                Parece o mesmo jogo que{" "}
+                {game.duplicates.map((d, i) => (
+                  <span key={d.id}>
+                    {i > 0 && ", "}
+                    <Link to={`/jogos/${d.id}`}>{d.name}</Link>{" "}
+                    <span className="muted">({STATUS1[d.status].toLowerCase()})</span>
+                  </span>
+                ))}
+                .
+              </span>
+              <button type="button" className="btn btn-sm" onClick={() => setMerging(true)}>
+                Mesclar aqui
+              </button>
+            </div>
+          )}
           <MatchReview game={game} links={ambiguous} watcher={watcher} />
           <section aria-labelledby="h-desc" className="card" style={{ gap: 12 }}>
             <h2 id="h-desc" className="section-title">
@@ -120,7 +141,7 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
         <aside aria-label="Resumo do jogo" className={styles.aside}>
           <ScoresCard game={game} />
           <WhereCard game={game} devices={devices} />
-          <InfoCard game={game} onEdit={() => setEditing(true)} onDelete={remove} />
+          <InfoCard game={game} onEdit={() => setEditing(true)} onMerge={() => setMerging(true)} onDelete={remove} />
         </aside>
       </div>
       <p className={styles.footerNote}>
@@ -130,6 +151,7 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
         <a href="https://www.metacritic.com" target="_blank" rel="noopener noreferrer">Metacritic</a>
       </p>
       <EditGameDialog game={game} open={editing} onClose={() => setEditing(false)} />
+      <MergeDialog game={game} open={merging} onClose={() => setMerging(false)} />
       {dialog}
     </div>
   );

@@ -4,7 +4,6 @@ import { Link } from "react-router";
 import { errorMessage } from "../../api/client";
 import {
   isJobActive,
-  useCancelJob,
   useConfirmLink,
   useEnrich,
   useIgnoreLink,
@@ -16,12 +15,14 @@ import type { EnrichIn, Job, PendingLink } from "../../api/types";
 import { Icon } from "../../components/Icon";
 import { useToast } from "../../components/Toast";
 import { useJobWatcher } from "../../components/useJobWatcher";
-import { ACCENTS, LINK_STATUS_LABEL, PROVIDER_LABEL } from "../../lib/constants";
+import { ACCENTS, JOB_KIND_SHORT, LINK_STATUS_LABEL, PROVIDER_LABEL } from "../../lib/constants";
 import { fmtLocalDateTime } from "../../lib/format";
 import { summarizePlatforms } from "../../lib/platforms";
 import { usePrefs } from "../../lib/prefs";
 import styles from "./IntegrationsPage.module.css";
+import { AccountsCard } from "./AccountsCard";
 import { ImportPanel } from "./ImportPanel";
+import { JobProgress } from "./JobProgress";
 
 export function IntegrationsPage() {
   return (
@@ -29,10 +30,11 @@ export function IntegrationsPage() {
       <div className="page-head">
         <h1 className="page-title">Integrações</h1>
         <p className="lead">
-          De onde vêm capas, descrições, tempos do HowLongToBeat e notas do Metacritic, além de importação, backup e
-          preferências.
+          Suas contas da Steam, Epic e GOG, de onde vêm capas, descrições, tempos do HowLongToBeat e notas do Metacritic,
+          além de importação, backup e preferências.
         </p>
       </div>
+      <AccountsCard />
       <ProvidersCard />
       <EnrichCard />
       <PendingCard />
@@ -50,6 +52,7 @@ const PROVIDER_HELP: Record<string, string> = {
   rawg: "Fallback de metadados e nota do Metacritic. Precisa de RAWG_API_KEY.",
   hltb: "Tempos de jogo, por scraping do howlongtobeat.com. Não precisa de chave.",
   metacritic: "Metascore e reviews da crítica, pelo backend público do metacritic.com. Não precisa de chave.",
+  steam: "Contas Steam pela URL do perfil (lista de jogos e horas). Precisa de STEAM_API_KEY.",
 };
 
 function ProvidersCard() {
@@ -61,8 +64,8 @@ function ProvidersCard() {
         Fontes de dados
       </h2>
       <div className={styles.providers}>
-        {(["igdb", "rawg", "hltb", "metacritic"] as const).map((p) => {
-          const on = providers?.[p];
+        {(["igdb", "rawg", "hltb", "metacritic", "steam"] as const).map((p) => {
+          const on = p === "steam" ? meta.data?.stores.steam : providers?.[p];
           return (
             <div key={p} className={styles.provider}>
               <div className={styles.providerHead}>
@@ -74,7 +77,7 @@ function ProvidersCard() {
           );
         })}
       </div>
-      {providers && (!providers.igdb || !providers.rawg) && (
+      {providers && (!providers.igdb || !providers.rawg || !meta.data?.stores.steam) && (
         <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
           Para ativar, preencha as chaves no arquivo <code>.env</code> ao lado do <code>docker-compose.yml</code> (veja o{" "}
           <code>.env.example</code>) e rode <code>docker compose up -d</code> de novo.
@@ -91,41 +94,6 @@ const SCOPES: { value: NonNullable<EnrichIn["scope"]>; label: string; help: stri
   { value: "stale", label: "Desatualizados", help: "Nunca buscados ou atualizados há mais de 30 dias." },
   { value: "all", label: "Todos", help: "A biblioteca inteira. Na primeira vez leva uns 15 minutos para 240 jogos." },
 ];
-
-function JobProgress({ job }: { job: Job }) {
-  const cancel = useCancelJob();
-  const pct = job.total ? Math.round((job.processed / job.total) * 100) : 0;
-  const active = isJobActive(job);
-  return (
-    <div className={styles.job}>
-      <div className={styles.jobHead}>
-        <span>
-          {job.kind === "refresh" ? "Atualização de jogo" : "Enriquecimento"} #{job.id} ·{" "}
-          {job.status === "queued" ? "na fila" : job.status === "running" ? "rodando" : job.status === "done" ? "concluído" : job.status === "cancelled" ? "cancelado" : "falhou"}
-        </span>
-        <span className="muted">
-          {job.processed}/{job.total} · {job.succeeded} ok · {job.failed} com erro
-        </span>
-      </div>
-      <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Progresso">
-        <span style={{ width: `${pct}%` }} />
-      </div>
-      {job.log.length > 0 && (
-        <ol className={styles.log} aria-label="Últimos jogos processados">
-          {job.log.slice(-8).reverse().map((line, i) => (
-            <li key={`${job.id}-${job.log.length - i}`}>{line}</li>
-          ))}
-        </ol>
-      )}
-      {job.error && <p className="error-text">{job.error}</p>}
-      {active && (
-        <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} disabled={cancel.isPending} onClick={() => cancel.mutate(job.id)}>
-          Cancelar
-        </button>
-      )}
-    </div>
-  );
-}
 
 function EnrichCard() {
   const [scope, setScope] = useState<NonNullable<EnrichIn["scope"]>>("missing");
@@ -197,7 +165,7 @@ function EnrichCard() {
                   <th scope="col">#</th>
                   <th scope="col">Tipo</th>
                   <th scope="col">Status</th>
-                  <th scope="col">Jogos</th>
+                  <th scope="col">Itens</th>
                   <th scope="col">Início</th>
                 </tr>
               </thead>
@@ -205,7 +173,7 @@ function EnrichCard() {
                 {list.map((j) => (
                   <tr key={j.id}>
                     <td>{j.id}</td>
-                    <td>{j.kind === "refresh" ? "jogo" : "lote"}</td>
+                    <td>{JOB_KIND_SHORT[j.kind] ?? j.kind}</td>
                     <td>{j.status}</td>
                     <td>
                       {j.processed}/{j.total}

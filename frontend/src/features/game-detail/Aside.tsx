@@ -5,9 +5,10 @@ import { useUpdateGame } from "../../api/queries";
 import type { Device, GameDetail } from "../../api/types";
 import { Icon } from "../../components/Icon";
 import { McRing } from "../../components/McRing";
+import { StoreMark } from "../../components/StoreMark";
 import { useToast } from "../../components/Toast";
-import { ORIGIN_LABEL, PRIORITY_LABEL, mcWord } from "../../lib/constants";
-import { fmtDate, hrs } from "../../lib/format";
+import { ORIGIN_LABEL, PRIORITY_LABEL, STORE_LABEL, mcWord } from "../../lib/constants";
+import { fmtDate, fmtLocalDate, hrs } from "../../lib/format";
 import styles from "./GameDetail.module.css";
 
 function LockedBadge({ game, field, label }: { game: GameDetail; field: string; label: string }) {
@@ -68,8 +69,8 @@ export function ScoresCard({ game }: { game: GameDetail }) {
           <span className={styles.metricLabel}>HLTB</span>
           <span className={styles.metricValue}>{hrs(game.hltb_main_hours) ?? "—"}</span>
         </div>
-        <div className={styles.metric}>
-          <span className={styles.metricLabel}>Seu tempo</span>
+        <div className={styles.metric} title={game.played_hours_source === "store" ? "Somado das suas contas de loja" : undefined}>
+          <span className={styles.metricLabel}>Seu tempo{game.played_hours_source === "store" ? " (lojas)" : ""}</span>
           <span className={styles.metricValue}>{hrs(game.played_hours) ?? "—"}</span>
         </div>
       </div>
@@ -111,6 +112,39 @@ export function WhereCard({ game, devices }: { game: GameDetail; devices: Device
           Nenhum aparelho seu roda {game.platform}. Cadastre um em <Link to="/consoles">Meus consoles</Link>.
         </p>
       )}
+      {game.ownerships.length > 0 && (
+        <div className={styles.owned}>
+          <span className="eyebrow">Nas suas contas</span>
+          {game.ownerships.map((o) => (
+            <div key={`${o.account_id}:${o.external_id}`} className={styles.device}>
+              <StoreMark store={o.store} size={32} />
+              <span className={styles.deviceText}>
+                <span className={styles.deviceName}>{o.nickname}</span>
+                <span className={styles.deviceKind}>
+                  {[
+                    STORE_LABEL[o.store],
+                    o.playtime_hours ? `${hrs(o.playtime_hours)} jogadas` : "",
+                    o.last_played_at ? `último: ${fmtLocalDate(o.last_played_at)}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </span>
+              {o.url && (
+                <a
+                  href={o.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`btn btn-icon ${styles.ownedLink}`}
+                  aria-label={`Abrir ${o.name} na ${STORE_LABEL[o.store]}`}
+                >
+                  <Icon name="external" />
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       {game.stores.length > 0 && (
         <div className="row" style={{ gap: 6 }}>
           <span className="muted" style={{ fontSize: 12 }}>
@@ -127,7 +161,17 @@ export function WhereCard({ game, devices }: { game: GameDetail; devices: Device
   );
 }
 
-export function InfoCard({ game, onEdit, onDelete }: { game: GameDetail; onEdit: () => void; onDelete: () => void }) {
+export function InfoCard({
+  game,
+  onEdit,
+  onMerge,
+  onDelete,
+}: {
+  game: GameDetail;
+  onEdit: () => void;
+  onMerge: () => void;
+  onDelete: () => void;
+}) {
   const finished = game.finished_at ? fmtDate(game.finished_at) : (game.finished_label ?? "—");
   const zerado = game.times_completed
     ? `${game.times_completed} ${game.times_completed === 1 ? "vez" : "vezes"}`
@@ -168,6 +212,9 @@ export function InfoCard({ game, onEdit, onDelete }: { game: GameDetail; onEdit:
       <div className="row">
         <button type="button" className="btn btn-sm" onClick={onEdit}>
           <Icon name="edit" size={14} /> Editar
+        </button>
+        <button type="button" className="btn btn-sm" onClick={onMerge}>
+          <Icon name="link" size={14} /> Mesclar…
         </button>
         <button type="button" className="btn btn-sm btn-danger" onClick={onDelete}>
           <Icon name="trash" size={14} /> Excluir

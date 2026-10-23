@@ -202,6 +202,9 @@ class _Resolver:
         # A etiqueta entra só quando o item é ligado: se o usuário a tirar depois, não volta.
         if self.tag not in game.stores:
             game.stores.append(self.tag)
+        # Jogo da planilha sem capa: a da loja serve até o IGDB trazer a oficial.
+        if not game.cover_url and item.cover_url and "cover_url" not in (game.locked_fields or []):
+            game.cover_url = item.cover_url
 
     def resolve(self, item: LibraryItem, report: SyncReport) -> None:
         other_gid, other_ignored = self.same_store.get(item.external_id, (None, False))

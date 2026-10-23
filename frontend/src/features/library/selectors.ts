@@ -1,65 +1,6 @@
-// Porte da parte "biblioteca" do renderVals() do protótipo: filtros, ordenação, contagens e stats.
-import type { Device, GameCard, Priority, Status } from "../../api/types";
-import { PRIO, STATUS_ORDER } from "../../lib/constants";
-import { fold } from "../../lib/text";
-
-export type SortKey = "prio" | "short" | "name" | "score" | "mc" | "date";
-
-export const SORT_LABEL: Record<SortKey, string> = {
-  prio: "Prioridade",
-  short: "Mais curtos (HLTB)",
-  name: "Nome",
-  score: "Sua nota",
-  mc: "Metacritic",
-  date: "Mais recentes",
-};
-
-export interface LibraryFilters {
-  tab: Status;
-  q: string;
-  platform: string;
-  deviceId: number | null;
-  priority: Priority | "";
-  sort: SortKey;
-}
-
-export const defaultSort = (tab: Status): SortKey => (tab === "backlog" ? "prio" : "date");
-
-const num = (v: number | null | undefined, d: number) => (v === null || v === undefined ? d : v);
-const byName = (a: GameCard, b: GameCard) => a.name.localeCompare(b.name, "pt-BR");
-
-/** Data usada em "Mais recentes": finalização, lançamento (hype) ou quando entrou na biblioteca. */
-export function dateKey(g: GameCard): string {
-  if (g.status === "hype") return g.release_date ?? "";
-  if (g.status === "done" || g.status === "dropped") return g.finished_at ?? "";
-  return g.created_at ?? "";
-}
-
-export const comparators: Record<SortKey, (a: GameCard, b: GameCard) => number> = {
-  prio: (a, b) => num(a.priority ? PRIO[a.priority] : null, 3) - num(b.priority ? PRIO[b.priority] : null, 3) || byName(a, b),
-  short: (a, b) => num(a.hltb_main_hours || a.played_hours, 1e9) - num(b.hltb_main_hours || b.played_hours, 1e9) || byName(a, b),
-  name: byName,
-  score: (a, b) => num(b.user_score, -1) - num(a.user_score, -1) || byName(a, b),
-  mc: (a, b) => num(b.metacritic_score, -1) - num(a.metacritic_score, -1) || byName(a, b),
-  date: (a, b) => dateKey(b).localeCompare(dateKey(a)) || byName(a, b),
-};
-
-export function inTab(games: GameCard[], tab: Status): GameCard[] {
-  return games.filter((g) => g.status === tab);
-}
-
-export function filterGames(games: GameCard[], devices: Device[], f: LibraryFilters): GameCard[] {
-  const q = fold(f.q);
-  const device = f.deviceId !== null ? devices.find((d) => d.id === f.deviceId) : undefined;
-  const list = inTab(games, f.tab).filter(
-    (g) =>
-      (!q || fold(g.name).includes(q)) &&
-      (!f.platform || g.platform === f.platform) &&
-      (!device || device.platform_ids.includes(g.platform_id)) &&
-      (f.tab !== "backlog" || !f.priority || g.priority === f.priority),
-  );
-  return list.sort(comparators[f.sort]);
-}
+// Contagens e estatísticas da biblioteca (sidebar e "Meus consoles"). Filtro e ordenação ficam em filters.ts.
+import type { Device, GameCard, Status } from "../../api/types";
+import { STATUS_ORDER } from "../../lib/constants";
 
 export function statusCounts(games: GameCard[]): Record<Status, number> {
   const out = Object.fromEntries(STATUS_ORDER.map((s) => [s, 0])) as Record<Status, number>;
@@ -103,8 +44,4 @@ export function libraryStats(games: GameCard[]): LibraryStats {
       ? (sum(scored.map((g) => g.user_score)) / scored.length).toFixed(1).replace(".", ",")
       : "—",
   };
-}
-
-export function platformOptions(tabGames: GameCard[]): string[] {
-  return Array.from(new Set(tabGames.map((g) => g.platform))).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }

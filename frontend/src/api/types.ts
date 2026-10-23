@@ -5,6 +5,7 @@ export type Status = "backlog" | "playing" | "done" | "dropped" | "hype" | "owne
 export type Priority = "Alta" | "Media" | "Baixa";
 export type ProviderName = "igdb" | "rawg" | "hltb" | "metacritic";
 export type SearchProvider = "igdb" | "rawg";
+export type StoreName = "steam" | "epic" | "gog";
 export type LinkStatus = "matched" | "confirmed" | "ambiguous" | "not_found" | "error" | "ignored";
 export type JobStatus = "queued" | "running" | "done" | "failed" | "cancelled";
 export type ImportMode = "novos" | "atualizar" | "substituir";
@@ -70,6 +71,9 @@ export interface Meta {
   priorities: Record<Priority, string>;
   device_kinds: string[];
   providers: ProvidersStatus;
+  /** Loja -> dá para conectar contas (a Steam precisa de STEAM_API_KEY). */
+  stores: Record<StoreName, boolean>;
+  library_sync_hour: number;
 }
 
 // ---------- jogos ----------
@@ -93,6 +97,18 @@ export interface GameCard {
   release_date: string | null;
   created_at: string;
   cover: string | null;
+  hltb_extra_hours: number | null;
+  hltb_complete_hours: number | null;
+  metacritic_user_score: number | null;
+  tags: string[];
+  developer: string | null;
+  publisher: string | null;
+  stores: string[];
+  /** Contas de loja que têm o jogo. */
+  account_ids: number[];
+  /** O mais recente entre as contas. */
+  last_played_at: string | null;
+  enriched: boolean;
 }
 
 export interface Comment {
@@ -149,9 +165,25 @@ export interface ExternalLink {
   last_error: string | null;
 }
 
+export interface Ownership {
+  account_id: number;
+  store: StoreName;
+  nickname: string;
+  external_id: string;
+  name: string;
+  playtime_hours: number | null;
+  last_played_at: string | null;
+  url: string | null;
+}
+
+export interface Duplicate {
+  id: number;
+  name: string;
+  status: Status;
+  platform: string;
+}
+
 export interface GameDetail extends GameCard {
-  hltb_extra_hours: number | null;
-  hltb_complete_hours: number | null;
   review_text: string | null;
   story_summary: string | null;
   description: string | null;
@@ -159,19 +191,19 @@ export interface GameDetail extends GameCard {
   background: string | null;
   cover_url: string | null;
   background_url: string | null;
-  metacritic_user_score: number | null;
   metacritic_url: string | null;
   metacritic_source: string | null;
-  tags: string[];
-  developer: string | null;
-  publisher: string | null;
   origin: string;
+  /** null: legado · "store": soma das contas · "user": digitado. */
+  played_hours_source: "store" | "user" | null;
   locked_fields: string[];
-  stores: string[];
   comments: Comment[];
   media: MediaItem[];
   store_reviews: StoreReview[];
   links: ExternalLink[];
+  ownerships: Ownership[];
+  /** Parecem o mesmo jogo: sugestão de mesclar. */
+  duplicates: Duplicate[];
   updated_at: string;
   last_enriched_at: string | null;
 }
@@ -388,4 +420,38 @@ export interface UserCreate extends SignupIn {
 export interface UserPatch {
   display_name?: string;
   is_admin?: boolean;
+}
+
+// ---------- contas de loja ----------
+
+export type AccountStatus = "never" | "ok" | "error" | "reauth";
+
+export interface Account {
+  id: number;
+  store: StoreName;
+  nickname: string;
+  external_user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  profile_url: string | null;
+  enabled: boolean;
+  status: AccountStatus;
+  last_sync_at: string | null;
+  last_attempt_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  game_count: number;
+  ignored_count: number;
+}
+
+export interface AccountCreate {
+  store: StoreName;
+  nickname: string;
+  /** Steam: URL do perfil ou ID. Epic/GOG: código, URL ou JSON colado depois do login. */
+  ref: string;
+}
+
+export interface AccountPatch {
+  nickname?: string;
+  enabled?: boolean;
 }

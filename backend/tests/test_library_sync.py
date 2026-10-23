@@ -151,11 +151,12 @@ async def test_igdb_veto_on_same_name(db, fake):
 async def test_reuses_spreadsheet_game_and_keeps_typed_hours(db, fake):
     import_short_json(db, 1, [{"n": "Hollow Knight", "p": "PC", "st": "backlog", "pr": "Alta", "t": 10}])
     s = account(db, "steam", "S")
-    fake.steam.libraries = {"S": [g("367520", "Hollow Knight", 900)]}
+    fake.steam.libraries = {"S": [g("367520", "Hollow Knight", 900, "https://c/hk.jpg")]}
     report = await sync_account(s)
     assert report.linked == 1 and report.created == []
     (hk,) = games_named(db, "Hollow Knight")
     assert hk.status == "backlog" and hk.priority == "Alta"
+    assert hk.cover_url == "https://c/hk.jpg"  # sem capa até agora: usa a da loja
     assert (hk.played_hours, hk.played_hours_source) == (10, "user")  # digitado na planilha
     assert [st.name for st in hk.stores] == ["Steam"]
 

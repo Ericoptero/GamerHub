@@ -39,11 +39,30 @@ export const KINDS = ["Console", "Portátil", "PC", "Emulador / retro", "Celular
 
 export const ACCENTS = ["#5AA8FF", "#9BE15D", "#FFB454", "#C792FF"];
 
+export const STORE_LABEL: Record<string, string> = { steam: "Steam", epic: "Epic", gog: "GOG" };
+
 export const PROVIDER_LABEL: Record<string, string> = {
   igdb: "IGDB",
   rawg: "RAWG",
   hltb: "HowLongToBeat",
   metacritic: "Metacritic",
+  steam: "Steam",
+};
+
+export const JOB_KIND_LABEL: Record<string, string> = {
+  refresh: "Atualização de jogo",
+  enrich: "Enriquecimento",
+  library_sync: "Sincronização das contas",
+};
+
+export const JOB_KIND_SHORT: Record<string, string> = { refresh: "jogo", enrich: "lote", library_sync: "contas" };
+
+export const JOB_STATUS_LABEL: Record<string, string> = {
+  queued: "na fila",
+  running: "rodando",
+  done: "concluído",
+  cancelled: "cancelado",
+  failed: "falhou",
 };
 
 export const LINK_STATUS_LABEL: Record<string, string> = {

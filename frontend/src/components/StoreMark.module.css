@@ -1,0 +1,23 @@
+.mark {
+  flex: none;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  background: var(--store-other);
+}
+
+.mark[data-store="steam"] {
+  background: var(--store-steam);
+}
+
+.mark[data-store="epic"] {
+  background: var(--store-epic);
+}
+
+.mark[data-store="gog"] {
+  background: var(--store-gog);
+}

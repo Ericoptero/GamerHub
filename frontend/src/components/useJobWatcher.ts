@@ -6,7 +6,7 @@ import type { Job } from "../api/types";
 import { useToast } from "./Toast";
 
 /**
- * Acompanha um job (refresh/enriquecimento): polling até terminar, depois recarrega os dados
+ * Acompanha um job (refresh/enriquecimento/sincronização): polling até terminar, depois recarrega os dados
  * dos jogos afetados e mostra a última linha do log num aviso.
  */
 export function useJobWatcher(gameIds: number[] = [], opts: { toast?: boolean } = {}) {
@@ -36,7 +36,9 @@ export function useJobWatcher(gameIds: number[] = [], opts: { toast?: boolean } 
     const summary =
       job.kind === "enrich"
         ? `Enriquecimento concluído: ${job.succeeded} ok, ${job.failed} com erro.`
-        : (last ?? "Atualização concluída.");
+        : job.kind === "library_sync" && job.total > 1
+          ? `Contas sincronizadas: ${job.succeeded} ok, ${job.failed} com erro.`
+          : (last ?? "Atualização concluída.");
     if (job.status === "done") toast.show(summary, job.failed ? "info" : "ok");
     else if (job.status === "cancelled") toast.show("Atualização cancelada.");
     else toast.error(job.error ?? last ?? "A atualização falhou.");
