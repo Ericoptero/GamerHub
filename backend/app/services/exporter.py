@@ -8,7 +8,19 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.domain import PRIORITY_LABELS, STATUS_SINGULAR, fold, normalize_title
-from app.models import Comment, Device, ExternalLink, Game, Genre, Media, Platform, Store, StoreReview
+from app.models import (
+    Comment,
+    Device,
+    ExternalLink,
+    Game,
+    Genre,
+    LibraryAccount,
+    LibraryItem,
+    Media,
+    Platform,
+    Store,
+    StoreReview,
+)
 from app.services.catalog import CatalogCache
 
 EXPORT_VERSION = 1
@@ -35,9 +47,26 @@ def _pick(obj: object, fields: tuple[str, ...]) -> dict:
     return {f: _jsonable(getattr(obj, f)) for f in fields}
 
 
+def _ownerships(db: Session, user_id: int) -> dict[int, list[dict]]:
+    """Em quais contas de loja está cada jogo (sem credenciais), para religar depois de restaurar."""
+    rows = db.execute(
+        select(LibraryItem.game_id, LibraryAccount.store, LibraryAccount.external_user_id, LibraryItem.external_id)
+        .join(LibraryAccount, LibraryAccount.id == LibraryItem.account_id)
+        .where(LibraryAccount.user_id == user_id, LibraryItem.game_id.is_not(None))
+    )
+    out: dict[int, list[dict]] = {}
+    for gid, store, ext_user, ext_id in rows:
+        out.setdefault(gid, []).append({"store": store, "external_user_id": ext_user, "external_id": ext_id})
+    return out
+
+
 def export_json(db: Session, user_id: int) -> dict:
-    """Biblioteca do usuário + catálogos compartilhados (plataformas, gêneros, lojas)."""
+    """Biblioteca do usuário + catálogos compartilhados (plataformas, gêneros, lojas).
+
+    As contas de loja e os tokens delas não entram; cada jogo leva só em quais contas está.
+    """
     games = db.scalars(select(Game).where(Game.user_id == user_id).order_by(Game.import_order, Game.id)).all()
+    owned = _ownerships(db, user_id)
     return {
         "version": EXPORT_VERSION,
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -68,6 +97,7 @@ def export_json(db: Session, user_id: int) -> dict:
                 "media": [_pick(m, _MEDIA_FIELDS) for m in g.media],
                 "store_reviews": [_pick(r, _REVIEW_FIELDS) for r in g.store_reviews],
                 "links": [_pick(lk, _LINK_FIELDS) for lk in g.links],
+                "ownerships": owned.get(g.id, []),
             }
             for g in games
         ],
@@ -118,6 +148,7 @@ def restore_json(db: Session, user_id: int, data: dict) -> dict:
             )
         )
 
+    restored: list[tuple[Game, list[dict]]] = []
     for raw in data.get("games", []):
         fields = {f: raw.get(f) for f in _GAME_FIELDS}
         for f in ("finished_at", "release_date"):
@@ -140,8 +171,32 @@ def restore_json(db: Session, user_id: int, data: dict) -> dict:
         ]
         game.links = [ExternalLink(**lk) for lk in raw.get("links", [])]
         db.add(game)
+        restored.append((game, raw.get("ownerships") or []))
+    db.flush()
+    _relink(db, user_id, restored)
     db.commit()
     return {"games": len(data.get("games", [])), "devices": len(data.get("devices", []))}
+
+
+def _relink(db: Session, user_id: int, restored: list[tuple[Game, list[dict]]]) -> None:
+    """Liga de novo os itens das contas de loja aos jogos restaurados (preserva mesclagens).
+    O que não casar fica sem jogo e é religado pelo nome na próxima sincronização."""
+    accounts = {
+        (a.store, a.external_user_id): a.id
+        for a in db.scalars(select(LibraryAccount).where(LibraryAccount.user_id == user_id))
+    }
+    for game, owned in restored:
+        for o in owned:
+            account_id = accounts.get((o.get("store"), o.get("external_user_id")))
+            if account_id is None:
+                continue
+            item = db.scalar(
+                select(LibraryItem).where(
+                    LibraryItem.account_id == account_id, LibraryItem.external_id == o.get("external_id")
+                )
+            )
+            if item is not None:
+                item.game_id, item.ignored = game.id, False
 
 
 CSV_HEADERS = [

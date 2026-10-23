@@ -1,6 +1,8 @@
-"""Jobs de enriquecimento persistidos (tabela jobs) e a fila asyncio que os executa dentro do processo.
+"""Jobs persistidos (tabela jobs) e a fila asyncio que os executa dentro do processo.
 
-Um job por vez em cada faixa (interativa e lote); dentro dele até 3 jogos em paralelo.
+Tipos: "refresh"/"enrich" (metadados dos jogos) e "library_sync" (contas de loja).
+Um job por vez em cada faixa (interativa, lote e sincronização); dentro de um job de
+metadados, até 3 jogos em paralelo.
 Os ids já processados ficam em params["done"], então um job interrompido por restart
 continua de onde parou.
 """
@@ -23,7 +25,9 @@ log = logging.getLogger(__name__)
 GAMES_IN_PARALLEL = 3
 LOG_LINES = 50
 REFRESH_PRIORITY = 0
+SYNC_PRIORITY = 3
 BATCH_PRIORITY = 5
+SYNC_KIND = "library_sync"
 
 
 def _now() -> datetime:
@@ -31,7 +35,8 @@ def _now() -> datetime:
 
 
 class Worker:
-    """Duas faixas: jobs interativos (atualizar um jogo, confirmar link) não esperam o lote.
+    """Três faixas: jobs interativos (atualizar um jogo, confirmar link) não esperam o lote, e a
+    sincronização das contas de loja não espera nenhum dos dois.
 
     Cada faixa roda um job por vez; os limites de taxa dos providers são compartilhados.
     """
@@ -43,7 +48,9 @@ class Worker:
         self._seq = itertools.count()
 
     @staticmethod
-    def _lane(priority: int) -> str:
+    def _lane(kind: str, priority: int) -> str:
+        if kind == SYNC_KIND:
+            return "sync"
         return "interactive" if priority < BATCH_PRIORITY else "batch"
 
     @property
@@ -52,24 +59,24 @@ class Worker:
 
     def start(self) -> None:
         self._loop = asyncio.get_running_loop()
-        self._queues = {"interactive": asyncio.PriorityQueue(), "batch": asyncio.PriorityQueue()}
+        self._queues = {lane: asyncio.PriorityQueue() for lane in ("interactive", "batch", "sync")}
         with dbmod.new_session() as db:
             pending = db.scalars(
                 select(Job).where(Job.status.in_(("queued", "running"))).order_by(Job.priority, Job.id)
             ).all()
             for job in pending:
                 job.status = "queued"
-                self._queues[self._lane(job.priority)].put_nowait((job.priority, next(self._seq), job.id))
+                self._queues[self._lane(job.kind, job.priority)].put_nowait((job.priority, next(self._seq), job.id))
             db.commit()
         self._tasks = [
             asyncio.create_task(self._run(q), name=f"enrichment-{lane}") for lane, q in self._queues.items()
         ]
 
-    def submit(self, job_id: int, priority: int) -> None:
+    def submit(self, job_id: int, priority: int, kind: str = "enrich") -> None:
         """Pode ser chamado de threads (endpoints síncronos do FastAPI)."""
         if self._loop is None or not self._queues:
             return
-        queue = self._queues[self._lane(priority)]
+        queue = self._queues[self._lane(kind, priority)]
         self._loop.call_soon_threadsafe(queue.put_nowait, (priority, next(self._seq), job_id))
 
     async def _run(self, queue: asyncio.PriorityQueue) -> None:
@@ -106,7 +113,7 @@ def _create(db: Session, user_id: int, kind: str, params: dict, priority: int, t
     job = Job(user_id=user_id, kind=kind, status="queued", priority=priority, params=params, total=total, log=[])
     db.add(job)
     db.commit()
-    worker.submit(job.id, priority)
+    worker.submit(job.id, priority, kind)
     return job
 
 
@@ -137,6 +144,19 @@ def request_enrich(db: Session, user_id: int, data: EnrichIn) -> Job:
     ids = select_game_ids(db, user_id, data)
     params = {"game_ids": ids, "providers": data.providers, "force": data.force, "rematch": False, "done": []}
     return _create(db, user_id, "enrich", params, BATCH_PRIORITY, len(ids))
+
+
+def request_library_sync(db: Session, user_id: int, account_ids: list[int], reason: str) -> Job:
+    """Sincroniza contas de loja. Um pedido igual que ainda está na fila é reaproveitado."""
+    ids = sorted(set(account_ids))
+    queued = db.scalars(
+        select(Job).where(Job.user_id == user_id, Job.kind == SYNC_KIND, Job.status == "queued")
+    ).all()
+    for job in queued:
+        if sorted(job.params.get("account_ids") or []) == ids:
+            return job
+    params = {"account_ids": ids, "reason": reason, "done": []}
+    return _create(db, user_id, SYNC_KIND, params, SYNC_PRIORITY, len(ids))
 
 
 def set_link(db: Session, game: Game, provider: str, external_id: str | None, status: str) -> None:
@@ -170,7 +190,8 @@ def cancel(db: Session, job: Job) -> Job:
 # ---------- execução ----------
 
 
-def _load(job_id: int) -> dict | None:
+def _load(job_id: int) -> tuple[str, int, dict] | None:
+    """Marca o job como rodando e devolve (tipo, dono, parâmetros)."""
     with dbmod.new_session() as db:
         job = db.get(Job, job_id)
         if job is None or job.status not in ("queued", "running"):
@@ -178,7 +199,7 @@ def _load(job_id: int) -> dict | None:
         job.status = "running"
         job.started_at = job.started_at or _now()
         db.commit()
-        return dict(job.params)
+        return job.kind, job.user_id, dict(job.params)
 
 
 def _status(job_id: int) -> str | None:
@@ -187,7 +208,8 @@ def _status(job_id: int) -> str | None:
         return job.status if job else None
 
 
-def _progress(job_id: int, game_id: int, ok: bool, line: str) -> None:
+def _progress(job_id: int, item_id: int, ok: bool, line: str) -> None:
+    """Conta um item (jogo ou conta de loja) como processado; os ids feitos ficam em params["done"]."""
     with dbmod.new_session() as db:
         job = db.get(Job, job_id)
         if job is None:
@@ -197,7 +219,7 @@ def _progress(job_id: int, game_id: int, ok: bool, line: str) -> None:
             job.succeeded += 1
         else:
             job.failed += 1
-        job.params = {**job.params, "done": [*job.params.get("done", []), game_id]}
+        job.params = {**job.params, "done": [*job.params.get("done", []), item_id]}
         job.log = [*(job.log or []), line][-LOG_LINES:]
         db.commit()
 
@@ -215,8 +237,14 @@ def _finish(job_id: int, status: str, error: str | None = None) -> None:
 
 
 async def run_job(job_id: int) -> None:
-    params = await asyncio.to_thread(_load, job_id)
-    if params is None:
+    loaded = await asyncio.to_thread(_load, job_id)
+    if loaded is None:
+        return
+    kind, user_id, params = loaded
+    if kind == SYNC_KIND:
+        from app.library.sync import run_library_sync
+
+        await run_library_sync(job_id, user_id, params)
         return
     done = set(params.get("done") or [])
     pending = [g for g in params.get("game_ids") or [] if g not in done]

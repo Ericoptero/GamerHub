@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from app.auth.deps import current_user, require_admin
 from app.db import get_db
 from app.domain import DEVICE_KINDS, PRIORITY_LABELS, STATUS_LABELS, STATUS_SINGULAR, fold
+from app.config import get_settings
 from app.integrations.registry import providers_status
+from app.library.registry import stores_status
 from app.models import Device, Game, Genre, Platform, Store, User
 from app.schemas import (
     DeviceIn,
@@ -37,6 +39,8 @@ def meta():
         priorities=PRIORITY_LABELS,
         device_kinds=list(DEVICE_KINDS),
         providers=providers_status(),
+        stores=stores_status(),
+        library_sync_hour=get_settings().library_sync_hour,
     )
 
 

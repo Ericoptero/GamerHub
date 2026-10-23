@@ -31,6 +31,10 @@ PRIORITY_LABELS = {"Alta": "Alta", "Media": "Média", "Baixa": "Baixa"}
 DEVICE_KINDS = ("Console", "Portátil", "PC", "Emulador / retro", "Celular", "Outro")
 
 PROVIDERS = ("igdb", "rawg", "hltb", "metacritic")
+
+# Lojas com contas sincronizadas e a etiqueta de loja (tabela stores) que cada uma põe no jogo.
+LIBRARY_STORES = ("steam", "epic", "gog")
+STORE_TAG = {"steam": "Steam", "epic": "Epic", "gog": "GOG"}
 LINK_STATUSES = ("matched", "confirmed", "ambiguous", "not_found", "error", "ignored")
 
 # Campos que vêm das integrações e podem ser travados quando editados à mão.

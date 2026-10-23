@@ -4,17 +4,20 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from app import db as dbmod
-from app.api import auth, catalog, games, integrations, io, users
+from app.api import accounts, auth, catalog, games, integrations, io, users
 from app.auth.sessions import COOKIE, resolve_token
 from app.config import get_settings
 from app.enrichment.jobs import worker
 from app.integrations.cache import purge_expired
 from app.integrations.registry import close_all
+from app.library.registry import close_store_clients
+from app.library.scheduler import daily_library_sync_loop
 from app.migrate import migrate
 from app.seed.seed_data import seed_catalogs
 from app.services.backup import daily_backup_loop
@@ -46,6 +49,7 @@ async def lifespan(_app: FastAPI):
     if settings.worker_enabled:
         worker.start()
         background.append(asyncio.create_task(daily_backup_loop(), name="daily-backup"))
+        background.append(asyncio.create_task(daily_library_sync_loop(), name="daily-library-sync"))
     try:
         yield
     finally:
@@ -55,6 +59,7 @@ async def lifespan(_app: FastAPI):
                 await task
         await worker.stop()
         await close_all()
+        await close_store_clients()
 
 
 PUBLIC_API = ("/api/auth/", "/api/health")
@@ -87,9 +92,12 @@ def create_app() -> FastAPI:
     settings = get_settings()
     settings.ensure_dirs()
     app = FastAPI(title="GamerHub", version="0.1.0", lifespan=lifespan)
+    # A lista de jogos com centenas de cards passa fácil de 1 MB em JSON.
+    app.add_middleware(GZipMiddleware, minimum_size=2048)
     if settings.auth_enabled:
         install_auth_guard(app)
-    for router in (auth.router, users.router, catalog.router, games.router, integrations.router, io.router):
+    routers = (auth, users, catalog, games, integrations, accounts, io)
+    for router in (m.router for m in routers):
         app.include_router(router)
     app.mount("/media", CachedStaticFiles(directory=settings.media_dir, check_dir=False), name="media")
 

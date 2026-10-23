@@ -23,6 +23,11 @@ DETAIL_FIELDS = (
 )
 
 
+# external_game_source do IGDB para as lojas que ele indexa por id (a Epic não tem id estável lá).
+EXTERNAL_SOURCES = {"steam": 1, "gog": 5}
+EXTERNAL_BATCH = 500
+
+
 def img(image_id: str, size: str) -> str:
     return IMG.format(size=size, id=image_id)
 
@@ -111,6 +116,23 @@ class IGDBProvider:
             genres=[x["name"] for x in g.get("genres") or [] if x.get("name")],
             url=g.get("url"),
         )
+
+    async def lookup_external(self, source: int, uids: list[str]) -> dict[str, int]:
+        """Id do jogo IGDB para cada id de loja (external_games). Edições sobem para o jogo base
+        (version_parent), então "Complete Edition" na GOG e o jogo base na Steam dão o mesmo id."""
+        out: dict[str, int] = {}
+        for i in range(0, len(uids), EXTERNAL_BATCH):
+            quoted = ",".join(f'"{_quote(u)}"' for u in uids[i : i + EXTERNAL_BATCH])
+            body = (
+                f"fields uid, game.id, game.version_parent; "
+                f"where external_game_source = {source} & uid = ({quoted}); limit {EXTERNAL_BATCH};"
+            )
+            for row in await self.query("external_games", body):
+                game = row.get("game") if isinstance(row.get("game"), dict) else {}
+                gid = game.get("version_parent") or game.get("id")
+                if row.get("uid") and gid:
+                    out[str(row["uid"])] = int(gid)
+        return out
 
     async def search(self, query: str, ctx: MatchContext) -> list[Candidate]:
         body = f'search "{_quote(query)}"; fields {SEARCH_FIELDS}; where version_parent = null; limit 20;'

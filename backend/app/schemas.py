@@ -5,10 +5,11 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-Status = Literal["backlog", "playing", "done", "dropped", "hype"]
+Status = Literal["backlog", "playing", "done", "dropped", "hype", "owned"]
 Priority = Literal["Alta", "Media", "Baixa"]
 ProviderName = Literal["igdb", "rawg", "hltb", "metacritic"]
 SearchProvider = Literal["igdb", "rawg"]
+StoreName = Literal["steam", "epic", "gog"]
 
 
 class Out(BaseModel):
@@ -91,6 +92,8 @@ class Meta(BaseModel):
     priorities: dict[str, str]
     device_kinds: list[str]
     providers: ProvidersStatus
+    stores: dict[str, bool] = {}  # loja -> dá para conectar contas (Steam precisa de STEAM_API_KEY)
+    library_sync_hour: int = 5
 
 
 # ---------- jogos ----------
@@ -115,6 +118,17 @@ class GameCard(Out):
     release_date: date | None
     created_at: datetime
     cover: str | None
+    # Para os filtros da lista.
+    hltb_extra_hours: float | None = None
+    hltb_complete_hours: float | None = None
+    metacritic_user_score: float | None = None
+    tags: list[str] = []
+    developer: str | None = None
+    publisher: str | None = None
+    stores: list[str] = []
+    account_ids: list[int] = []  # contas de loja que têm o jogo
+    last_played_at: datetime | None = None  # o mais recente entre as contas
+    enriched: bool = False
 
 
 class CommentOut(Out):
@@ -171,9 +185,25 @@ class LinkOut(Out):
     last_error: str | None
 
 
+class OwnershipOut(BaseModel):
+    account_id: int
+    store: str
+    nickname: str
+    external_id: str
+    name: str
+    playtime_hours: float | None
+    last_played_at: datetime | None
+    url: str | None
+
+
+class DuplicateOut(BaseModel):
+    id: int
+    name: str
+    status: str
+    platform: str
+
+
 class GameDetail(GameCard):
-    hltb_extra_hours: float | None
-    hltb_complete_hours: float | None
     review_text: str | None
     story_summary: str | None
     description: str | None
@@ -181,21 +211,23 @@ class GameDetail(GameCard):
     background: str | None
     cover_url: str | None
     background_url: str | None
-    metacritic_user_score: float | None
     metacritic_url: str | None
     metacritic_source: str | None
-    tags: list[str]
-    developer: str | None
-    publisher: str | None
     origin: str
+    played_hours_source: str | None = None
     locked_fields: list[str]
-    stores: list[str]
     comments: list[CommentOut]
     media: list[MediaOut]
     store_reviews: list[StoreReviewOut]
     links: list[LinkOut]
+    ownerships: list[OwnershipOut] = []
+    duplicates: list[DuplicateOut] = []  # parecem o mesmo jogo: sugestão de mesclar
     updated_at: datetime
     last_enriched_at: datetime | None
+
+
+class MergeIn(BaseModel):
+    source_id: int
 
 
 class LinkRef(BaseModel):
@@ -370,3 +402,48 @@ class PasswordResetIn(BaseModel):
 class UserPatch(BaseModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=80)
     is_admin: bool | None = None
+
+
+# ---------- contas de loja ----------
+
+
+class AccountOut(Out):
+    id: int
+    store: StoreName
+    nickname: str
+    external_user_id: str
+    display_name: str | None
+    avatar_url: str | None
+    profile_url: str | None
+    enabled: bool
+    status: Literal["never", "ok", "error", "reauth"]
+    last_sync_at: datetime | None
+    last_attempt_at: datetime | None
+    last_error: str | None
+    created_at: datetime
+    game_count: int = 0
+    ignored_count: int = 0
+
+
+class AccountCreate(BaseModel):
+    store: StoreName
+    nickname: str = Field(min_length=1, max_length=40)
+    # Steam: URL do perfil ou ID. Epic/GOG: código, URL ou JSON colado depois do login.
+    ref: str = Field(min_length=1, max_length=4000)
+
+
+class AccountPatch(BaseModel):
+    nickname: str | None = Field(default=None, min_length=1, max_length=40)
+    enabled: bool | None = None
+
+
+class AccountReconnect(BaseModel):
+    ref: str = Field(min_length=1, max_length=4000)
+
+
+class AccountSyncIn(BaseModel):
+    account_ids: list[int] | None = None  # None: todas as contas ativas
+
+
+class LoginUrlOut(BaseModel):
+    url: str

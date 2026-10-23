@@ -27,6 +27,7 @@ TTL = {
     "rawg.fetch": 30 * DAY,
     "hltb.fetch": 14 * DAY,
     "metacritic.fetch": 7 * DAY,
+    "epic.catalog": 30 * DAY,
 }
 EMPTY_TTL = 3 * DAY
 

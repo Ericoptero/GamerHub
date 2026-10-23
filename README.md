@@ -59,8 +59,43 @@ nome da aba ("Lista de espera", "Finalizados"…) e simula antes de gravar. Os m
 | RAWG | sim (grátis) | <https://rawg.io/apidocs> → `RAWG_API_KEY` |
 | HowLongToBeat | não | — |
 | Metacritic | não (hoje) | `METACRITIC_API_KEY` só se o site passar a exigir |
+| Steam (contas) | sim (grátis) | <https://steamcommunity.com/dev/apikey> (precisa de conta Steam com alguma compra) → `STEAM_API_KEY` |
+| Epic e GOG (contas) | não | login feito pela tela, veja abaixo |
 
 Depois de editar o `.env`, rode `docker compose up -d` para recriar o container.
+
+### Contas Steam, Epic e GOG
+
+Em **Integrações → Contas das lojas** você conecta quantas contas quiser, cada uma com um apelido.
+O apelido aparece no card e na página de cada jogo.
+
+- **Steam:** cole a URL do perfil, nos formatos `https://steamcommunity.com/id/JogadorExemplo/` ou
+  `https://steamcommunity.com/profiles/76561198000000001/`. Para a lista vir, o perfil precisa
+  deixar **"Detalhes do jogo"** como público (Steam → Perfil → Privacidade).
+- **Epic:** clique em **Abrir login da Epic**. Com a conta logada, a página mostra um texto com
+  `authorizationCode`; cole o texto inteiro (ou só o código). Ele vale poucos minutos.
+- **GOG:** clique em **Abrir login da GOG**. Depois de entrar, o navegador para numa página em
+  branco; copie a URL dela (tem `code=…`) e cole.
+
+O que acontece com os jogos:
+
+- **Biblioteca:** os jogos das contas entram no status **Biblioteca**, fora da lista de espera.
+  É só mudar o status quando quiser jogar.
+- **Mesmo jogo em várias contas:** vira **um jogo só**, com os selos de todas as contas. Ele é
+  reconhecido pelo mesmo id na loja, pelo mesmo jogo no IGDB ou pelo mesmo nome, e jogos da
+  planilha são reaproveitados.
+- **Mesclar à mão:** nomes só parecidos ("Witcher 3" e "The Witcher 3 GOTY") viram uma sugestão
+  na página do jogo, e também dá para mesclar qualquer jogo com outro.
+- **Horas jogadas:** as horas da Steam e da Epic (somadas entre as contas) preenchem o campo
+  enquanto você não digitar um valor. A GOG não informa horas.
+- **Apagar:** um jogo apagado não volta na próxima sincronização. Na conta, "restaurar
+  ignorados" traz de volta.
+- **Checagem diária:** a partir das `LIBRARY_SYNC_HOUR` (padrão 5h, no fuso `TZ`), cada conta é
+  checada uma vez por dia. Os jogos novos entram e os metadados deles (IGDB, RAWG, HLTB,
+  Metacritic e capas) são baixados sozinhos. O botão **Sincronizar** faz isso na hora.
+- **Tokens:** Epic e GOG guardam um token de acesso que é renovado a cada checagem. Se o servidor
+  ficar semanas desligado, a conta pede para reconectar. Os tokens ficam no banco, ou seja, também
+  no `backup.sqlite` e nos backups diários; não entram no `export.json`.
 
 ### Enriquecer a biblioteca
 

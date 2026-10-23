@@ -8,7 +8,7 @@ from app.auth.deps import current_user
 from app.db import get_db
 from app.enrichment.jobs import link_and_refresh
 from app.models import Comment, Game, Media, User
-from app.schemas import CommentIn, CommentOut, GameCard, GameCreate, GameDetail, GamePatch, MediaIn
+from app.schemas import CommentIn, CommentOut, GameCard, GameCreate, GameDetail, GamePatch, MediaIn, MergeIn
 from app.services import games as svc
 from app.services.media_cache import cache_game_images
 
@@ -20,12 +20,13 @@ def list_games(status: str | None = None, db: Session = Depends(get_db), user: U
     q = select(Game).where(Game.user_id == user.id).order_by(Game.id)
     if status:
         q = q.where(Game.status == status)
-    return [svc.to_card(g) for g in db.scalars(q)]
+    owned = svc.ownership_index(db, user.id)
+    return [svc.to_card(g, owned) for g in db.scalars(q)]
 
 
 @router.get("/games/{game_id}", response_model=GameDetail)
 def get_game(game_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    return svc.to_detail(svc.get_game(db, user.id, game_id))
+    return svc.to_detail(db, svc.get_game(db, user.id, game_id))
 
 
 @router.post("/games", response_model=GameDetail, status_code=201)
@@ -38,7 +39,7 @@ def create_game(
     elif game.cover_url:
         background.add_task(cache_game_images, game.id)
     db.refresh(game)
-    return svc.to_detail(game)
+    return svc.to_detail(db, game)
 
 
 @router.patch("/games/{game_id}", response_model=GameDetail)
@@ -52,13 +53,29 @@ def patch_game(
     game = svc.patch_game(db, svc.get_game(db, user.id, game_id), patch)
     if {"cover_url", "background_url"} & patch.model_fields_set:
         background.add_task(cache_game_images, game.id)
-    return svc.to_detail(game)
+    return svc.to_detail(db, game)
 
 
 @router.delete("/games/{game_id}", status_code=204)
 def delete_game(game_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
     svc.delete_game(db, svc.get_game(db, user.id, game_id))
     return Response(status_code=204)
+
+
+@router.post("/games/{game_id}/merge", response_model=GameDetail)
+def merge_game(
+    game_id: int,
+    data: MergeIn,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    """Junta outro jogo (`source_id`) neste e apaga o outro."""
+    target = svc.get_game(db, user.id, game_id)
+    game = svc.merge_games(db, target, svc.get_game(db, user.id, data.source_id))
+    background.add_task(cache_game_images, game.id)
+    db.refresh(game)
+    return svc.to_detail(db, game)
 
 
 # ---------- comentários ----------
@@ -121,7 +138,7 @@ def add_media(
     db.commit()
     if data.kind != "video":
         background.add_task(cache_game_images, game.id)
-    return svc.to_detail(game)
+    return svc.to_detail(db, game)
 
 
 @router.delete("/media/{media_id}", status_code=204)

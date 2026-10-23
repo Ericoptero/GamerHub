@@ -19,10 +19,14 @@ class Settings(BaseSettings):
     igdb_client_secret: str = ""
     rawg_api_key: str = ""
     metacritic_api_key: str = ""
+    # Steam Web API (contas Steam). Chave grátis em https://steamcommunity.com/dev/apikey
+    steam_api_key: str = ""
 
     cache_screenshots: bool = True
     worker_enabled: bool = True
     backup_keep: int = 7
+    # Hora local (TZ do container) a partir da qual a checagem diária das contas de loja roda.
+    library_sync_hour: int = 5
 
     # Login opcional: desligado, o app é de um usuário só e abre direto (como sempre foi).
     auth_enabled: bool = False

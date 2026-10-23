@@ -2,6 +2,7 @@
 
     uv run pytest -m live            # HLTB e Metacritic (sem chave)
     IGDB_CLIENT_ID=… IGDB_CLIENT_SECRET=… RAWG_API_KEY=… uv run pytest -m live
+    STEAM_API_KEY=… uv run pytest -m live -k steam
 """
 
 import pytest
@@ -13,6 +14,7 @@ from app.integrations.igdb import IGDBProvider
 from app.integrations.matching import decide, rank
 from app.integrations.metacritic import MetacriticProvider
 from app.integrations.rawg import RAWGProvider
+from app.library.steam import SteamClient
 
 pytestmark = pytest.mark.live
 
@@ -65,5 +67,37 @@ async def test_rawg_live():
         assert status == "matched"
         patch = await p.fetch(best.external_id, PC)
         assert patch.description
+    finally:
+        await p.aclose()
+
+
+async def test_steam_live():
+    s = get_settings()
+    if not s.steam_api_key:
+        pytest.skip("sem STEAM_API_KEY")
+    client = SteamClient(s.steam_api_key)
+    try:
+        by_vanity = await client.connect("https://steamcommunity.com/id/JogadorExemplo/")
+        by_id = await client.connect(f"https://steamcommunity.com/profiles/{by_vanity.external_user_id}/")
+        assert by_vanity.external_user_id == by_id.external_user_id
+        games = await client.fetch_library(by_vanity.external_user_id, {}, _noop, known=set())
+        assert games and all(g.name for g in games)
+        assert all(g.cover_url and g.cover_url.startswith("https://") for g in games)
+    finally:
+        await client.aclose()
+
+
+async def _noop(_credentials: dict) -> None:
+    pass
+
+
+async def test_igdb_external_games_live():
+    s = get_settings()
+    if not (s.igdb_client_id and s.igdb_client_secret):
+        pytest.skip("sem IGDB_CLIENT_ID/SECRET")
+    p = IGDBProvider(s.igdb_client_id, s.igdb_client_secret)
+    try:
+        found = await p.lookup_external(1, ["367520"])  # Hollow Knight na Steam
+        assert found.get("367520") == 14593
     finally:
         await p.aclose()
