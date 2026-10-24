@@ -344,6 +344,18 @@
   min-width: 0;
 }
 
+/* Sua nota, no fim da linha do nome. */
+.userScore {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
 .prioDot {
   width: 8px;
   height: 8px;

@@ -7,7 +7,7 @@ import httpx
 import pytest
 import respx
 
-from app.integrations.base import MatchContext, ProviderError
+from app.integrations.base import MatchContext, ProviderError, WrongLink
 from app.integrations.hltb import HLTBProvider
 from app.integrations.igdb import IGDBProvider
 from app.integrations.metacritic import BACKEND, SITE, MetacriticProvider
@@ -241,3 +241,75 @@ async def test_hltb_falls_back_to_dlc_search():
 async def test_hltb_none_is_error():
     with pytest.raises(ProviderError):
         await FakeHLTB(None).search("x", PC)
+
+
+# ---------- link da página do jogo ----------
+
+
+async def test_igdb_from_link_looks_up_slug():
+    p = IGDBProvider("cid", "secret")
+    bodies: list[str] = []
+
+    def games(request: httpx.Request):
+        bodies.append(request.content.decode())
+        return httpx.Response(200, json=fx("igdb/search-hollow-knight.json")[:1])
+
+    with respx.mock(assert_all_called=False) as mock:
+        mock.post("https://id.twitch.tv/oauth2/token").mock(
+            return_value=httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+        )
+        mock.post("https://api.igdb.com/v4/games").mock(side_effect=games)
+        found = await p.from_link("https://www.igdb.com/games/Hollow-Knight?tab=reviews", PC)
+        with pytest.raises(WrongLink):
+            await p.from_link("https://rawg.io/games/hollow-knight", PC)
+    await p.aclose()
+    assert 'where slug = "hollow-knight"' in bodies[0]
+    assert found.external_id == str(fx("igdb/search-hollow-knight.json")[0]["id"])
+
+
+async def test_rawg_from_link_follows_redirect_and_404():
+    base = "https://api.rawg.io/api"
+    p = RAWGProvider("key")
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(f"{base}/games/hollow-knight-old").mock(
+            return_value=httpx.Response(200, json={"redirect": True, "slug": "hollow-knight"})
+        )
+        mock.get(f"{base}/games/hollow-knight").mock(return_value=httpx.Response(200, json=fx("rawg/game-9767.json")))
+        mock.get(f"{base}/games/nada").mock(return_value=httpx.Response(404, json={"detail": "Not found."}))
+        found = await p.from_link("https://rawg.io/games/hollow-knight-old", PC)
+        missing = await p.from_link("rawg.io/games/nada", PC)
+    await p.aclose()
+    assert found.external_id == "9767" and found.name == "Hollow Knight" and found.url.endswith("/hollow-knight")
+    assert missing is None
+
+
+async def test_metacritic_from_link():
+    p = MetacriticProvider()
+    with respx.mock(assert_all_called=False) as mock:
+        mc_routes(mock)
+        mock.get(f"{BACKEND}/composer/metacritic/pages/games/nada/web").mock(return_value=httpx.Response(404))
+        mock.get(f"{BACKEND}/composer/metacritic/pages/games/vazio/web").mock(
+            return_value=httpx.Response(200, json={"components": []})
+        )
+        found = await p.from_link("https://www.metacritic.com/game/hollow-knight/critic-reviews/?platform=pc", PC)
+        missing = await p.from_link("https://www.metacritic.com/game/nada/", PC)
+        empty = await p.from_link("https://www.metacritic.com/game/vazio/", PC)
+        with pytest.raises(WrongLink):
+            await p.from_link("https://www.metacritic.com/movie/alien/", PC)
+    await p.aclose()
+    assert (found.external_id, found.name, found.year, found.on_platform) == ("hollow-knight", "Hollow Knight", 2018, True)
+    assert missing is None and empty is None
+
+
+async def test_hltb_from_link():
+    p = FakeHLTB([])
+
+    async def by_id(gid):
+        return entry(gid, "Hollow Knight", ["PC"], 26.53) if gid == 26286 else None
+
+    p._lib_by_id = by_id
+    found = await p.from_link("https://howlongtobeat.com/game/26286", PC)
+    assert found.external_id == "26286" and found.extra["main"] == 26.5 and found.on_platform is True
+    assert await p.from_link("howlongtobeat.com/game/1", PC) is None
+    with pytest.raises(WrongLink):
+        await p.from_link("https://howlongtobeat.com/user/eu", PC)

@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app import db as dbmod
 from app.integrations import registry
-from app.integrations.base import Candidate, MatchContext
+from app.integrations.base import Candidate, MatchContext, WrongLink
 from app.main import create_app
 from app.models import ExternalLink, Game, Job
 
@@ -120,6 +120,40 @@ def test_confirm_result_from_other_name_keeps_name_and_url(client):
         )
         assert db.get(Job, job.json()["id"]).kind == "refresh"
     assert client.get("/api/integrations/pending").json() == []
+
+
+class FakeLinks(FakeSearch):
+    """Também abre o link da página do jogo (como o HLTB: /game/<id>)."""
+
+    def __init__(self, name: str):
+        super().__init__(name)
+        self.links: list[str] = []
+
+    async def from_link(self, url: str, ctx: MatchContext) -> Candidate | None:
+        self.links.append(url)
+        if "/game/" not in url:
+            raise WrongLink("Cole o link da página do jogo no HowLongToBeat.")
+        if url.endswith("/10270"):
+            return Candidate(provider=self.name, external_id="10270", name="Pokémon Emerald", year=2004)
+        return None
+
+
+def test_search_accepts_game_page_link(client):
+    hltb = FakeLinks("hltb")
+    registry.set_provider("hltb", hltb)
+    gid = _game(client, "Pokémon Esmeralda")
+    search = lambda q: client.get(  # noqa: E731
+        "/api/integrations/search", params={"provider": "hltb", "q": q, "game_id": gid}
+    )
+
+    r = search(" https://howlongtobeat.com/game/10270")
+    assert r.status_code == 200, r.text
+    assert [(c["external_id"], c["score"]) for c in r.json()] == [("10270", 100.0)]
+    assert hltb.links == ["https://howlongtobeat.com/game/10270"] and hltb.contexts == []  # nada de busca por nome
+    assert search("howlongtobeat.com/game/1").json() == []
+    r = search("https://howlongtobeat.com/user/eu")
+    assert r.status_code == 422 and "link" in r.json()["detail"]
+    assert len(search("Pokemon Emerald").json()) == 2 and len(hltb.contexts) == 1  # título continua buscando
 
 
 def test_pending_skips_hidden_games(client):

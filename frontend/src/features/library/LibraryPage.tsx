@@ -423,6 +423,12 @@ function Card({
             <span className={styles.prioDot} style={prioDot(g.priority)} aria-hidden="true" />
           )}
           <span className={styles.cardText}>{g.name}</span>
+          {show.score && g.user_score !== null && (
+            <span className={styles.userScore} title={`Sua nota: ${g.user_score}/10`}>
+              <Icon name="star" size={11} strokeWidth={0} fill="currentColor" />
+              {g.user_score}
+            </span>
+          )}
         </span>
         {meta && (
           <span className={styles.meta} title={meta}>

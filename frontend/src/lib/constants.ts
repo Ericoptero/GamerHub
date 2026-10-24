@@ -63,15 +63,6 @@ export const JOB_STATUS_LABEL: Record<string, string> = {
   failed: "falhou",
 };
 
-export const LINK_STATUS_LABEL: Record<string, string> = {
-  matched: "Encontrado",
-  confirmed: "Confirmado",
-  ambiguous: "Precisa confirmar",
-  not_found: "Sem correspondência",
-  error: "Erro",
-  ignored: "Ignorado",
-};
-
 export const ORIGIN_LABEL: Record<string, string> = {
   planilha: "Planilha",
   manual: "Manual",

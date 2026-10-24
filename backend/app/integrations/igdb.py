@@ -1,15 +1,26 @@
 """IGDB v4 (https://api-docs.igdb.com). Autenticação por client credentials da Twitch."""
 
 import asyncio
+import re
 import time
 from datetime import datetime, timezone
 
-from app.integrations.base import Candidate, MatchContext, MediaRef, MetadataPatch, ProviderError, ReviewRef, Times
+from app.integrations.base import (
+    Candidate,
+    MatchContext,
+    MediaRef,
+    MetadataPatch,
+    ProviderError,
+    ReviewRef,
+    Times,
+    WrongLink,
+)
 from app.integrations.http import RateLimitedClient
 
 TOKEN_URL = "https://id.twitch.tv/oauth2/token"
 API_URL = "https://api.igdb.com/v4"
 IMG = "https://images.igdb.com/igdb/image/upload/t_{size}/{id}.jpg"
+LINK = re.compile(r"igdb\.com/games/([a-z0-9][a-z0-9-]*)", re.I)  # página do jogo no site
 
 SEARCH_FIELDS = (
     "name, alternative_names.name, first_release_date, cover.image_id, "
@@ -21,7 +32,6 @@ DETAIL_FIELDS = (
     "genres.name, themes.name, aggregated_rating, aggregated_rating_count, "
     "involved_companies.company.name, involved_companies.developer, involved_companies.publisher"
 )
-
 
 # external_game_source do IGDB para as lojas que ele indexa por id (a Epic não tem id estável lá).
 EXTERNAL_SOURCES = {"steam": 1, "gog": 5}
@@ -137,6 +147,13 @@ class IGDBProvider:
     async def search(self, query: str, ctx: MatchContext) -> list[Candidate]:
         body = f'search "{_quote(query)}"; fields {SEARCH_FIELDS}; where version_parent = null; limit 20;'
         return [self._candidate(g, ctx) for g in await self.query("games", body)]
+
+    async def from_link(self, url: str, ctx: MatchContext) -> Candidate | None:
+        m = LINK.search(url)
+        if not m:
+            raise WrongLink("Cole o link da página do jogo no IGDB (igdb.com/games/…).")
+        body = f'fields {SEARCH_FIELDS}; where slug = "{_quote(m.group(1).lower())}"; limit 1;'
+        return next((self._candidate(g, ctx) for g in await self.query("games", body)), None)
 
     async def fetch(self, external_id: str, ctx: MatchContext, hint: Candidate | None = None) -> MetadataPatch:
         gid = int(external_id)

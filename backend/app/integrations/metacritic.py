@@ -13,8 +13,18 @@ from urllib.parse import quote
 
 from app.config import get_settings
 from app.domain import fold
-from app.integrations.base import Candidate, MatchContext, MetadataPatch, ProviderError, ReviewRef, Scores
+from app.integrations.base import (
+    Candidate,
+    MatchContext,
+    MetadataPatch,
+    NotFound,
+    ProviderError,
+    ReviewRef,
+    Scores,
+    WrongLink,
+)
 from app.integrations.http import RateLimitedClient
+from app.integrations.rawg import metacritic_slug
 
 BACKEND = "https://backend.metacritic.com"
 SITE = "https://www.metacritic.com"
@@ -67,6 +77,30 @@ class MetacriticProvider:
         items = (data.get("data") or {}).get("items") or []
         return [self._candidate(it, ctx) for it in items if it.get("slug") and it.get("typeId") == 13]
 
+    async def from_link(self, url: str, ctx: MatchContext) -> Candidate | None:
+        slug = metacritic_slug(url)
+        if not slug:
+            raise WrongLink("Cole o link da página do jogo no Metacritic (metacritic.com/game/…).")
+        try:
+            product = await self._product(slug)
+        except NotFound:
+            return None
+        slug = product.get("slug") or slug
+        platforms = [p.get("name", "") for p in product.get("platforms") or [] if p.get("name")]
+        on_platform = None
+        if ctx.metacritic_platform and platforms:
+            on_platform = fold(ctx.metacritic_platform) in {fold(p) for p in platforms}
+        return Candidate(
+            provider=self.name,
+            external_id=slug,
+            name=product.get("title") or slug,
+            year=product.get("premiereYear"),
+            platforms=platforms,
+            on_platform=on_platform,
+            url=f"{SITE}/game/{slug}/",
+            extra={"score": (product.get("criticScoreSummary") or {}).get("score")},
+        )
+
     async def _product(self, slug: str) -> dict:
         data = await self._json(f"/composer/metacritic/pages/games/{slug}/web")
         for comp in data.get("components") or []:
@@ -74,7 +108,8 @@ class MetacriticProvider:
                 item = (comp.get("data") or {}).get("item")
                 if item:
                     return item
-        raise ProviderError("metacritic: página do jogo sem dados de produto")
+        # O Metacritic responde 200 sem produto para um slug que não existe.
+        raise NotFound("metacritic: página do jogo sem dados de produto")
 
     async def _jsonld_score(self, slug: str) -> int | None:
         resp = await self._http.request("GET", f"{SITE}/game/{slug}/")

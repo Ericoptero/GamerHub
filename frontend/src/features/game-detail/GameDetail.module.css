@@ -440,6 +440,13 @@
   white-space: pre-line;
 }
 
+.storyEdit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 .reviews {
   display: flex;
   flex-direction: column;
@@ -467,21 +474,16 @@
   line-height: 1.5;
 }
 
-.links {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--muted);
+.integrationsSummary {
+  flex-wrap: wrap;
+  gap: 6px 10px;
 }
 
-.linkRow {
+.integrations {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 /* ---------- correspondência ---------- */

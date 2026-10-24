@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -7,7 +9,7 @@ from app.db import get_db
 from app.domain import PROVIDERS, fold, normalize_title
 from app.enrichment import jobs
 from app.enrichment.orchestrator import load_snapshot
-from app.integrations.base import Candidate, MatchContext, ProviderError
+from app.integrations.base import Candidate, MatchContext, ProviderError, WrongLink
 from app.integrations.cache import cached
 from app.integrations.matching import display_score, rank
 from app.integrations.registry import get_provider, providers_status
@@ -27,6 +29,11 @@ from app.seed.seed_data import suggest_genre
 from app.services.games import get_game, media_url
 
 PENDING_STATUSES = ("ambiguous", "not_found", "error")
+LINK_SCORE = 100.0  # o link aponta o jogo: não há o que ranquear
+
+
+def is_link(q: str) -> bool:
+    return bool(re.match(r"\s*(https?://|www\.)", q, re.I) or re.search(r"\.(com|io)/", q, re.I))
 
 router = APIRouter(prefix="/api", tags=["integrations"])
 
@@ -39,14 +46,15 @@ def status():
 @router.get("/integrations/search", response_model=list[CandidateOut])
 async def search(
     provider: ProviderName,
-    q: str = Query(min_length=2, max_length=200),
+    q: str = Query(min_length=2, max_length=500),
     platform_id: int | None = None,
     game_id: int | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
     """Busca avulsa numa integração. Com `game_id`, ranqueia com a plataforma e o ano daquele jogo
-    (é o "procurar por outro nome" do Precisa da sua ajuda)."""
+    (é o "procurar por outro nome" do Precisa da sua ajuda). `q` também pode ser o link da página do
+    jogo no site da integração: aí volta só aquele jogo."""
     prov = get_provider(provider)
     if not prov.enabled:
         raise HTTPException(409, f"{provider.upper()} não configurado (veja o .env)")
@@ -64,10 +72,16 @@ async def search(
             rawg_platform_id=platform.rawg_platform_id if platform else None,
         )
     try:
-        found = await cached(provider, "search", (q, ctx.platform), lambda: prov.search(q, ctx), list[Candidate])
+        if is_link(q):
+            linked = await prov.from_link(q.strip(), ctx)
+            candidates = [linked.model_copy(update={"score": LINK_SCORE})] if linked else []
+        else:
+            found = await cached(provider, "search", (q, ctx.platform), lambda: prov.search(q, ctx), list[Candidate])
+            candidates = rank(found, ctx)
+    except WrongLink as e:
+        raise HTTPException(422, str(e)) from None
     except ProviderError as e:
         raise HTTPException(502, str(e)) from None
-    candidates = rank(found, ctx)
     local = db.scalars(select(Platform)).all()
 
     def runs_on(c: Candidate) -> list[int]:

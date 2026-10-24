@@ -4,10 +4,20 @@ import asyncio
 import re
 from datetime import date
 
-from app.integrations.base import Candidate, MatchContext, MediaRef, MetadataPatch, ReviewRef, Scores
+from app.integrations.base import (
+    Candidate,
+    MatchContext,
+    MediaRef,
+    MetadataPatch,
+    NotFound,
+    ReviewRef,
+    Scores,
+    WrongLink,
+)
 from app.integrations.http import RateLimitedClient
 
 API_URL = "https://api.rawg.io/api"
+LINK = re.compile(r"rawg\.io/games/([a-z0-9][a-z0-9-]*)", re.I)  # página do jogo no site
 
 
 def resized(url: str | None, width: int = 640) -> str | None:
@@ -72,6 +82,18 @@ class RAWGProvider:
     async def search(self, query: str, ctx: MatchContext) -> list[Candidate]:
         data = await self._get("/games", search=query, search_precise="true", page_size=12)
         return [self._candidate(g, ctx) for g in data.get("results") or []]
+
+    async def from_link(self, url: str, ctx: MatchContext) -> Candidate | None:
+        m = LINK.search(url)
+        if not m:
+            raise WrongLink("Cole o link da página do jogo na RAWG (rawg.io/games/…).")
+        try:
+            g = await self._get(f"/games/{m.group(1).lower()}")
+            if g.get("redirect") and g.get("slug"):  # slug antigo: a RAWG aponta o novo
+                g = await self._get(f"/games/{g['slug']}")
+        except NotFound:
+            return None
+        return self._candidate(g, ctx) if g.get("id") else None
 
     async def fetch(self, external_id: str, ctx: MatchContext, hint: Candidate | None = None) -> MetadataPatch:
         gid = int(external_id)

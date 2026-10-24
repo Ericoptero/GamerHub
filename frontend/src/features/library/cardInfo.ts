@@ -1,4 +1,4 @@
-// O que cada card da biblioteca mostra embaixo da capa: plataforma, onde jogar e contas.
+// O que cada card da biblioteca mostra embaixo da capa: plataforma, onde jogar, contas e sua nota.
 // Cada item liga/desliga nas preferências; no modo automático, o que é igual em todos os
 // cards da lista sai do card e aparece uma vez no subtítulo.
 import type { Account, Device, GameCard } from "../../api/types";
@@ -18,6 +18,7 @@ export interface CardDisplay {
   platform: boolean;
   devices: boolean;
   accounts: boolean;
+  score: boolean;
   /** O que é igual em todos os cards e foi para o subtítulo. */
   shared: { platform?: string; devices?: string[]; accountIds?: number[] };
 }
@@ -25,7 +26,13 @@ export interface CardDisplay {
 const accountKey = (g: GameCard) => [...g.account_ids].sort((a, b) => a - b).join(",");
 
 export function cardDisplay(list: GameCard[], prefs: CardPrefs, devicesOf: Map<number, string[]>): CardDisplay {
-  const out: CardDisplay = { platform: prefs.platform, devices: prefs.devices, accounts: prefs.accounts, shared: {} };
+  const out: CardDisplay = {
+    platform: prefs.platform,
+    devices: prefs.devices,
+    accounts: prefs.accounts,
+    score: prefs.score,
+    shared: {},
+  };
   if (!prefs.auto || list.length < 2) return out;
   const [first] = list;
   if (list.every((g) => g.platform_id === first.platform_id)) {

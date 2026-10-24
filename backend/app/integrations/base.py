@@ -13,6 +13,14 @@ class ProviderError(Exception):
     """Falha transitória ou de configuração de um provider (vira link com status 'error')."""
 
 
+class NotFound(ProviderError):
+    """O provider respondeu 404: o item não existe."""
+
+
+class WrongLink(ValueError):
+    """O link colado na busca não é da página de um jogo nesta integração."""
+
+
 class Candidate(BaseModel):
     provider: str
     external_id: str
@@ -115,3 +123,7 @@ class Provider(Protocol):
     async def search(self, query: str, ctx: MatchContext) -> list[Candidate]: ...
 
     async def fetch(self, external_id: str, ctx: MatchContext, hint: Candidate | None = None) -> MetadataPatch: ...
+
+    async def from_link(self, url: str, ctx: MatchContext) -> Candidate | None:
+        """O jogo do link da página dele no site (None se não existe); WrongLink se o link é de outra coisa."""
+        ...

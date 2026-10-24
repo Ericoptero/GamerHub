@@ -7,6 +7,8 @@ export interface CardPrefs {
   platform: boolean;
   devices: boolean;
   accounts: boolean;
+  /** A nota que você deu ao jogo. */
+  score: boolean;
   /** Esconde do card o que for igual em todos os jogos da lista (vai uma vez para o subtítulo). */
   auto: boolean;
 }
@@ -18,7 +20,7 @@ export interface Prefs {
 }
 
 const KEY = "gamerhub.prefs";
-const DEFAULT_CARD: CardPrefs = { platform: true, devices: true, accounts: true, auto: true };
+const DEFAULT_CARD: CardPrefs = { platform: true, devices: true, accounts: true, score: true, auto: true };
 export const DEFAULT_PREFS: Prefs = { accent: ACCENTS[0], coverSize: 150, card: DEFAULT_CARD };
 const EVENT = "gamerhub:prefs";
 
@@ -37,6 +39,7 @@ export function parsePrefs(raw: unknown): Prefs {
       platform: bool(card.platform, DEFAULT_CARD.platform),
       devices: bool(card.devices, DEFAULT_CARD.devices),
       accounts: bool(card.accounts, DEFAULT_CARD.accounts),
+      score: bool(card.score, DEFAULT_CARD.score),
       auto: bool(card.auto, DEFAULT_CARD.auto),
     },
   };

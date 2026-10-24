@@ -1,0 +1,136 @@
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--bg-chip);
+  color: var(--text-3);
+}
+
+.badge[data-state="ok"],
+.mark[data-state="ok"] {
+  color: var(--ok);
+}
+
+.badge[data-state="ambiguous"],
+.badge[data-state="not_found"],
+.mark[data-state="ambiguous"],
+.mark[data-state="not_found"] {
+  color: var(--warn);
+}
+
+.badge[data-state="error"],
+.mark[data-state="error"] {
+  color: var(--danger);
+}
+
+.providers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.provider {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+
+.providerHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 13px;
+}
+
+.providerName {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 130px;
+  font-weight: 700;
+}
+
+.mark {
+  width: 14px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.providerSummary {
+  flex: 1 1 200px;
+  min-width: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.providerSummary a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.provider[data-state="error"] .providerSummary {
+  color: var(--danger);
+}
+
+.providerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.providerBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.search {
+  display: flex;
+  gap: 8px;
+}
+
+.search :global(.input) {
+  flex: 1;
+  min-width: 0;
+}
+
+.hint {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.example {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .providerName {
+    flex-basis: auto;
+  }
+
+  .providerActions {
+    margin-left: 0;
+  }
+}

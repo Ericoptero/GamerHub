@@ -1,11 +1,12 @@
 import { errorMessage } from "../../api/client";
-import { useConfirmLink, useIgnoreLink, useRefreshGame } from "../../api/queries";
-import type { ExternalLink, GameDetail, Job } from "../../api/types";
+import { useConfirmLink, useIgnoreLink, useMeta, useRefreshGame } from "../../api/queries";
+import type { ExternalLink, GameDetail, Job, RefreshIn } from "../../api/types";
 import { CandidateList } from "../../components/CandidateList";
 import { Icon } from "../../components/Icon";
 import { useToast } from "../../components/Toast";
-import { LINK_STATUS_LABEL, PROVIDER_LABEL } from "../../lib/constants";
+import { PROVIDER_LABEL } from "../../lib/constants";
 import { fmtDate } from "../../lib/format";
+import { PROVIDERS, ProviderBadges, ProviderRows } from "../integrations/ProviderSearch";
 import styles from "./GameDetail.module.css";
 
 interface JobProps {
@@ -20,16 +21,73 @@ function jobLabel(job: Job | undefined, active: boolean): string {
   return job.total > 1 ? `Atualizando ${job.processed}/${job.total}…` : "Atualizando…";
 }
 
-/** Reviews de lojas/crítica recolhidas, status das integrações e o botão de atualizar. */
-export function StoreReviewsSection({ game, watcher }: { game: GameDetail; watcher: JobProps }) {
+/**
+ * O que cada integração achou para o jogo. "Trocar"/"Procurar" refazem a busca com o título que você
+ * escolher (ou o link da página do jogo); embaixo, atualizar tudo ou buscar de novo pelo nome.
+ */
+export function IntegrationsSection({ game, watcher }: { game: GameDetail; watcher: JobProps }) {
+  const meta = useMeta();
   const refresh = useRefreshGame(game.id);
   const toast = useToast();
+  const linked = new Set(game.links.map((l) => l.provider));
+  // Integração sem chave só aparece se já tiver algo registrado para o jogo.
+  const providers = PROVIDERS.filter((p) => (meta.data?.providers[p] ?? true) || linked.has(p));
+  const run = (data: RefreshIn) =>
+    refresh.mutate(data, {
+      onSuccess: watcher.start,
+      onError: (e) => toast.error(`Não consegui atualizar: ${errorMessage(e)}`),
+    });
+
+  return (
+    <details className={styles.foldQuiet}>
+      <summary className={styles.integrationsSummary}>
+        Integrações
+        <ProviderBadges providers={providers} links={game.links} />
+      </summary>
+      <div className={styles.integrations}>
+        <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
+          Jogo errado ou não achou? Em “Trocar” ou “Procurar”, busque por outro título ou cole o link da página do jogo
+          no site da integração.
+        </p>
+        <ProviderRows
+          gameId={game.id}
+          gameName={game.name}
+          providers={providers}
+          links={game.links}
+          watcher={watcher}
+          onRetry={(p) => run({ providers: [p], rematch: true, force: false })}
+          retrying={refresh.isPending}
+        />
+        <div className="row">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => run({ force: true, rematch: false })}
+            disabled={watcher.active || refresh.isPending}
+            aria-live="polite"
+          >
+            <Icon name="refresh" size={14} />
+            {jobLabel(watcher.job, watcher.active)}
+          </button>
+          {game.links.length > 0 && !watcher.active && (
+            <button
+              type="button"
+              className="btn btn-link"
+              onClick={() => run({ force: true, rematch: true })}
+              disabled={refresh.isPending}
+            >
+              Buscar de novo a correspondência pelo nome
+            </button>
+          )}
+        </div>
+      </div>
+    </details>
+  );
+}
+
+/** Reviews de lojas e da crítica, recolhidas para não competir com a sua. */
+export function StoreReviewsSection({ game }: { game: GameDetail }) {
   const reviews = game.store_reviews;
-  const run = (rematch = false) =>
-    refresh.mutate(
-      { force: true, rematch },
-      { onSuccess: watcher.start, onError: (e) => toast.error(`Não consegui atualizar: ${errorMessage(e)}`) },
-    );
 
   return (
     <details className={styles.foldQuiet}>
@@ -60,34 +118,6 @@ export function StoreReviewsSection({ game, watcher }: { game: GameDetail; watch
             Nenhuma review de loja importada. Elas ficam aqui, recolhidas, para não competir com a sua.
           </p>
         )}
-        {game.links.length > 0 && (
-          <div className={styles.links}>
-            {game.links.map((l) => (
-              <div key={l.provider} className={styles.linkRow}>
-                <strong style={{ color: "var(--text-3)" }}>{PROVIDER_LABEL[l.provider] ?? l.provider}</strong>
-                <span>· {LINK_STATUS_LABEL[l.status] ?? l.status}</span>
-                {l.matched_name && <span>· {l.matched_name}</span>}
-                {l.external_url && (
-                  <a href={l.external_url} target="_blank" rel="noopener noreferrer" aria-label={`Abrir no ${PROVIDER_LABEL[l.provider] ?? l.provider}`}>
-                    <Icon name="external" size={12} />
-                  </a>
-                )}
-                {l.last_error && <span style={{ color: "var(--danger)" }}>· {l.last_error}</span>}
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="row">
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => run(false)} disabled={watcher.active || refresh.isPending} aria-live="polite">
-            <Icon name="refresh" size={14} />
-            {jobLabel(watcher.job, watcher.active)}
-          </button>
-          {game.links.length > 0 && !watcher.active && (
-            <button type="button" className="btn btn-link" onClick={() => run(true)} disabled={refresh.isPending}>
-              Buscar de novo a correspondência
-            </button>
-          )}
-        </div>
       </div>
     </details>
   );

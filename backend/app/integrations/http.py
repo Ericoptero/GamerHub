@@ -9,7 +9,7 @@ import httpx
 from aiolimiter import AsyncLimiter
 from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait_random_exponential
 
-from app.integrations.base import ProviderError
+from app.integrations.base import NotFound, ProviderError
 
 log = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ class RateLimitedClient:
 
     def _json(self, response: httpx.Response) -> dict | list:
         if response.status_code == 404:
-            raise ProviderError(f"{self.provider}: não encontrado (404)")
+            raise NotFound(f"{self.provider}: não encontrado (404)")
         if response.status_code >= 400:
             raise ProviderError(f"{self.provider}: HTTP {response.status_code}: {response.text[:200]}")
         try:

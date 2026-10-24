@@ -8,6 +8,7 @@ const OPTIONS: [keyof CardPrefs, string][] = [
   ["platform", "Plataforma"],
   ["devices", "Jogável em (seus aparelhos)"],
   ["accounts", "Contas das lojas"],
+  ["score", "Sua nota"],
   ["auto", "Esconder o que for igual em todos os cards (automático)"],
 ];
 

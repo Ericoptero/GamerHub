@@ -4,11 +4,15 @@ A biblioteca usa aiohttp por dentro, então os testes substituem `_lib_search`/`
 Retorno `None` da biblioteca significa erro (não "sem resultado").
 """
 
+import re
+
 from aiolimiter import AsyncLimiter
 from howlongtobeatpy import HowLongToBeat, SearchModifiers
 
 from app.domain import fold
-from app.integrations.base import Candidate, MatchContext, MetadataPatch, ProviderError, Times
+from app.integrations.base import Candidate, MatchContext, MetadataPatch, ProviderError, Times, WrongLink
+
+LINK = re.compile(r"howlongtobeat\.com/game/(\d+)", re.I)  # página do jogo no site
 
 
 def _h(value: float | None) -> float | None:
@@ -62,6 +66,14 @@ class HLTBProvider:
         if entries is None:
             raise ProviderError("hltb: a busca falhou (a API do HowLongToBeat pode ter mudado)")
         return [self._candidate(e, ctx) for e in entries]
+
+    async def from_link(self, url: str, ctx: MatchContext) -> Candidate | None:
+        m = LINK.search(url)
+        if not m:
+            raise WrongLink("Cole o link da página do jogo no HowLongToBeat (howlongtobeat.com/game/…).")
+        async with self._limiter:
+            entry = await self._lib_by_id(int(m.group(1)))
+        return self._candidate(entry, ctx) if entry else None
 
     async def fetch(self, external_id: str, ctx: MatchContext, hint: Candidate | None = None) -> MetadataPatch:
         if hint is not None and hint.external_id == external_id and hint.extra:

@@ -17,10 +17,11 @@ import { CommentsSection } from "./CommentsSection";
 import { EditGameDialog } from "./EditGameDialog";
 import styles from "./GameDetail.module.css";
 import { Hero } from "./Hero";
-import { MatchReview, StoreReviewsSection } from "./IntegrationSection";
+import { IntegrationsSection, MatchReview, StoreReviewsSection } from "./IntegrationSection";
 import { MediaSection } from "./MediaSection";
 import { MergeDialog } from "./MergeDialog";
 import { ReviewSection } from "./ReviewSection";
+import { StorySection } from "./StorySection";
 
 const ENRICH_POLL_MS = 2000;
 const ENRICH_POLL_WINDOW_MS = 2 * 60_000;
@@ -143,13 +144,9 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
           <MediaSection game={game} />
           <ReviewSection game={game} />
           <CommentsSection game={game} />
-          {(game.story_summary || game.storyline) && (
-            <details className={styles.fold}>
-              <summary>Resumo da história (spoilers){game.story_summary ? "" : " (IGDB)"}</summary>
-              <p className={styles.story}>{game.story_summary || game.storyline}</p>
-            </details>
-          )}
-          <StoreReviewsSection game={game} watcher={watcher} />
+          <StorySection game={game} />
+          <StoreReviewsSection game={game} />
+          <IntegrationsSection game={game} watcher={watcher} />
         </div>
         <aside aria-label="Resumo do jogo" className={styles.aside}>
           <ScoresCard game={game} />

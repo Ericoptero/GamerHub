@@ -22,7 +22,7 @@ describe("informações do card", () => {
 
   it("mostra plataforma, onde jogar e contas numa lista misturada", () => {
     const show = cardDisplay([pcA, gba], on, devs);
-    expect(show).toEqual({ platform: true, devices: true, accounts: true, shared: {} });
+    expect(show).toEqual({ platform: true, devices: true, accounts: true, score: true, shared: {} });
     expect(metaLine(pcA, show, devs)).toBe("PC · PC, Steam Deck");
     expect(metaLine(game({ name: "Zelda", platform: "Switch" }), show, devs)).toBe("Switch · nenhum aparelho seu");
   });
@@ -46,8 +46,14 @@ describe("informações do card", () => {
   });
 
   it("respeita o liga/desliga e o automático desligado", () => {
-    const off = { ...on, devices: false, accounts: false };
-    expect(cardDisplay([pcA, gba], off, devs)).toEqual({ platform: true, devices: false, accounts: false, shared: {} });
+    const off = { ...on, devices: false, accounts: false, score: false };
+    expect(cardDisplay([pcA, gba], off, devs)).toEqual({
+      platform: true,
+      devices: false,
+      accounts: false,
+      score: false,
+      shared: {},
+    });
     expect(metaLine(pcA, cardDisplay([pcA, gba], off, devs), devs)).toBe("PC");
     expect(cardDisplay([pcA, pcB], { ...off, auto: true }, devs).shared).toEqual({ platform: "PC" });
     expect(cardDisplay([pcA, pcB], { ...on, auto: false }, devs).platform).toBe(true);
@@ -60,6 +66,6 @@ describe("informações do card", () => {
     const p = parsePrefs({ accent: "#ffffff", coverSize: 999, card: { devices: false, auto: "sim" } });
     expect(p.accent).toBe("#ffffff");
     expect(p.coverSize).toBe(DEFAULT_PREFS.coverSize);
-    expect(p.card).toEqual({ platform: true, devices: false, accounts: true, auto: true });
+    expect(p.card).toEqual({ platform: true, devices: false, accounts: true, score: true, auto: true });
   });
 });
