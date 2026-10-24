@@ -283,6 +283,13 @@
   gap: 22px 16px;
 }
 
+.cardWrap {
+  position: relative;
+  /* Bibliotecas com 1000+ jogos: o navegador pula o layout dos cards fora da tela. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--cover-size) auto calc(var(--cover-size) * 1.5 + 80px);
+}
+
 .card {
   display: flex;
   flex-direction: column;
@@ -290,9 +297,40 @@
   color: inherit;
   text-decoration: none;
   border-radius: 8px;
-  /* Bibliotecas com 1000+ jogos: o navegador pula o layout dos cards fora da tela. */
-  content-visibility: auto;
-  contain-intrinsic-size: auto var(--cover-size) auto calc(var(--cover-size) * 1.5 + 80px);
+}
+
+/* Ocultar/mostrar: aparece no hover ou no foco; em tela de toque fica sempre visível. */
+.hideBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(8, 11, 17, 0.72);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.cardWrap:hover .hideBtn,
+.hideBtn:focus-visible {
+  opacity: 1;
+}
+
+.hideBtn:hover {
+  background: rgba(8, 11, 17, 0.92);
+}
+
+@media (hover: none) {
+  .hideBtn {
+    opacity: 0.85;
+  }
 }
 
 .card:hover .cardText {

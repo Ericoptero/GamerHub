@@ -53,3 +53,21 @@
   align-items: center;
   justify-content: center;
 }
+
+.action {
+  flex: none;
+  align-self: center;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.action:hover {
+  text-decoration: underline;
+}

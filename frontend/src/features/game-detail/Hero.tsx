@@ -5,6 +5,7 @@ import { GameCover } from "../../components/GameCover";
 import { Icon } from "../../components/Icon";
 import { PRIORITY_LABEL, STATUS1, STATUS_DOT } from "../../lib/constants";
 import { initials } from "../../lib/cover";
+import { useBackToLibrary } from "../library/returnTo";
 import styles from "./GameDetail.module.css";
 
 const MOVES: Status[] = ["backlog", "playing", "done", "dropped"];
@@ -22,6 +23,7 @@ export function Hero({ game, onMove, busy }: { game: GameDetail; onMove: (s: Sta
   );
   const moves = MOVES.filter((k) => k !== game.status);
   const backdrop = game.background ?? game.cover;
+  const back = useBackToLibrary();
 
   return (
     <section aria-label="Cabeçalho do jogo" className={styles.hero}>
@@ -31,7 +33,16 @@ export function Hero({ game, onMove, busy }: { game: GameDetail; onMove: (s: Sta
       {backdrop && <img className={styles.heroImg} src={backdrop} alt="" />}
       <span className={styles.heroFade} aria-hidden="true" />
       <div className={styles.heroInner}>
-        <Link to="/biblioteca" className={styles.back}>
+        <Link
+          to={back.href}
+          className={styles.back}
+          onClick={(e) => {
+            // Ctrl/meio-clique abrem a lista numa aba nova, como um link normal.
+            if (!back.fromLibrary || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            e.preventDefault();
+            back.go();
+          }}
+        >
           <Icon name="back" strokeWidth={2.4} />
           Biblioteca
         </Link>

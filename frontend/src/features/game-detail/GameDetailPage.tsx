@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useParams } from "react-router";
 
 import { ApiError, errorMessage } from "../../api/client";
 import { useDeleteGame, useDevices, useGame, useUpdateGame } from "../../api/queries";
@@ -11,6 +11,7 @@ import { useJobWatcher } from "../../components/useJobWatcher";
 import { STATUS1 } from "../../lib/constants";
 import { palette } from "../../lib/cover";
 import { parseUtc, todayIso } from "../../lib/format";
+import { useBackToLibrary } from "../library/returnTo";
 import { InfoCard, ScoresCard, WhereCard } from "./Aside";
 import { CommentsSection } from "./CommentsSection";
 import { EditGameDialog } from "./EditGameDialog";
@@ -49,7 +50,7 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
   const update = useUpdateGame(game.id);
   const del = useDeleteGame();
   const toast = useToast();
-  const navigate = useNavigate();
+  const back = useBackToLibrary();
   const [dialog, confirm] = useConfirm();
   const [editing, setEditing] = useState(false);
   const [merging, setMerging] = useState(false);
@@ -65,6 +66,18 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
       onSuccess: () => toast.show(`${game.name}: ${STATUS1[status].toLowerCase()}.`, "ok"),
       onError: (e) => toast.error(`Não consegui mover: ${errorMessage(e)}`),
     });
+  };
+
+  const toggleHidden = () => {
+    const hidden = !game.hidden;
+    update.mutate(
+      { hidden },
+      {
+        onSuccess: () =>
+          toast.show(hidden ? `${game.name} foi para Ocultos.` : `${game.name} voltou para as listas.`, "ok"),
+        onError: (e) => toast.error(`Não consegui ${hidden ? "ocultar" : "mostrar"}: ${errorMessage(e)}`),
+      },
+    );
   };
 
   const remove = async () => {
@@ -84,7 +97,7 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
     del.mutate(game.id, {
       onSuccess: () => {
         toast.show(`${game.name} foi excluído.`);
-        navigate("/biblioteca");
+        back.go();
       },
       onError: (e) => toast.error(errorMessage(e)),
     });
@@ -141,7 +154,13 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
         <aside aria-label="Resumo do jogo" className={styles.aside}>
           <ScoresCard game={game} />
           <WhereCard game={game} devices={devices} />
-          <InfoCard game={game} onEdit={() => setEditing(true)} onMerge={() => setMerging(true)} onDelete={remove} />
+          <InfoCard
+            game={game}
+            onEdit={() => setEditing(true)}
+            onMerge={() => setMerging(true)}
+            onToggleHidden={toggleHidden}
+            onDelete={remove}
+          />
         </aside>
       </div>
       <p className={styles.footerNote}>

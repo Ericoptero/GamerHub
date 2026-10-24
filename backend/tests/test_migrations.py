@@ -58,6 +58,7 @@ def test_upgrade_from_0001_keeps_children(empty_db):
         for table in ("games", "comments", "external_links", "game_stores", "media", "store_reviews", "device_platforms"):
             assert _count(conn, table) == 1, table
         assert conn.execute(text("SELECT user_id FROM games")).scalar_one() == 1
+        assert conn.execute(text("SELECT hidden FROM games")).scalar_one() == 0
         assert conn.execute(text("SELECT user_id FROM devices")).scalar_one() == 1
         assert conn.execute(text("SELECT user_id FROM jobs")).scalar_one() == 1
         assert conn.execute(text("SELECT username, password_hash FROM users")).one() == ("principal", None)

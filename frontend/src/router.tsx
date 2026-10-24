@@ -10,6 +10,12 @@ import { GameDetailPage } from "./features/game-detail/GameDetailPage";
 import { IntegrationsPage } from "./features/integrations/IntegrationsPage";
 import { LibraryPage } from "./features/library/LibraryPage";
 
+// Sem chave própria, a primeira entrada vira "default" em toda página carregada: abrir o app de novo na
+// mesma aba (favorito, URL digitada) herdaria a rolagem salva da visita anterior. No F5 a chave fica.
+if (!window.history.state?.key) {
+  window.history.replaceState({ usr: null, key: Math.random().toString(36).slice(2, 10), idx: 0 }, "");
+}
+
 export const router = createBrowserRouter([
   { path: "entrar", element: <LoginPage /> },
   {

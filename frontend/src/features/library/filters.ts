@@ -4,8 +4,9 @@ import type { Account, Device, GameCard, Priority, Status } from "../../api/type
 import { PRIO, PRIORITIES, STATUS_ORDER, STORE_LABEL } from "../../lib/constants";
 import { fold } from "../../lib/text";
 
-export type Tab = Status | "all";
-export const TAB_ORDER: Tab[] = [...STATUS_ORDER, "all"];
+/** "hidden": os jogos ocultos, de qualquer status (nenhuma outra lista mostra oculto). */
+export type Tab = Status | "all" | "hidden";
+export const TAB_ORDER: Tab[] = [...STATUS_ORDER, "all", "hidden"];
 
 export type SortKey =
   | "prio"
@@ -95,7 +96,7 @@ const EMPTY_RANGE: Range = { min: null, max: null };
 export function defaultSort(tab: Tab): SortKey {
   if (tab === "backlog") return "prio";
   if (tab === "owned") return "mc";
-  if (tab === "all") return "name";
+  if (tab === "all" || tab === "hidden") return "name";
   return "date";
 }
 
@@ -123,7 +124,7 @@ export function emptyFilters(tab: Tab = "backlog"): Filters {
 
 // ---------- URL ----------
 
-const TAB_PARAM: Partial<Record<Tab, string>> = { all: "todos" };
+const TAB_PARAM: Partial<Record<Tab, string>> = { all: "todos", hidden: "ocultos" };
 const ids = (xs: string[]) => xs.map(Number).filter((n) => Number.isInteger(n) && n > 0);
 const num = (s: string) =>
   s.trim() === "" ? null : Number.isFinite(Number(s.replace(",", "."))) ? Number(s.replace(",", ".")) : null;
@@ -198,8 +199,13 @@ export function serializeFilters(f: Filters): URLSearchParams {
 
 // ---------- filtro ----------
 
+function isInTab(g: GameCard, tab: Tab): boolean {
+  if (tab === "hidden") return g.hidden;
+  return !g.hidden && (tab === "all" || g.status === tab);
+}
+
 export function inTab(games: GameCard[], tab: Tab): GameCard[] {
-  return tab === "all" ? games : games.filter((g) => g.status === tab);
+  return games.filter((g) => isInTab(g, tab));
 }
 
 const any = <T>(selected: T[], test: (x: T) => boolean) => selected.length === 0 || selected.some(test);
@@ -212,7 +218,7 @@ function inRange(value: number | null, r: Range, unknown: boolean): boolean {
 
 /** Dentro de um grupo vale qualquer um (OU); entre grupos, todos (E). */
 export function matches(g: GameCard, f: Filters, devices: Device[]): boolean {
-  if (f.tab !== "all" && g.status !== f.tab) return false;
+  if (!isInTab(g, f.tab)) return false;
   if (f.q && !fold(g.name).includes(fold(f.q))) return false;
   if (!any(f.platforms, (p) => p === g.platform)) return false;
   if (f.devices.length && !devices.some((d) => f.devices.includes(d.id) && d.platform_ids.includes(g.platform_id))) {

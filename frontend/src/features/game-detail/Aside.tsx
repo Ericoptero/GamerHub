@@ -165,11 +165,13 @@ export function InfoCard({
   game,
   onEdit,
   onMerge,
+  onToggleHidden,
   onDelete,
 }: {
   game: GameDetail;
   onEdit: () => void;
   onMerge: () => void;
+  onToggleHidden: () => void;
   onDelete: () => void;
 }) {
   const finished = game.finished_at ? fmtDate(game.finished_at) : (game.finished_label ?? "—");
@@ -208,6 +210,12 @@ export function InfoCard({
         )}
         <dt>Origem</dt>
         <dd>{ORIGIN_LABEL[game.origin] ?? game.origin}</dd>
+        {game.hidden && (
+          <>
+            <dt>Visibilidade</dt>
+            <dd>Oculto (só aparece em Ocultos)</dd>
+          </>
+        )}
       </dl>
       <div className="row">
         <button type="button" className="btn btn-sm" onClick={onEdit}>
@@ -215,6 +223,9 @@ export function InfoCard({
         </button>
         <button type="button" className="btn btn-sm" onClick={onMerge}>
           <Icon name="link" size={14} /> Mesclar…
+        </button>
+        <button type="button" className="btn btn-sm" onClick={onToggleHidden}>
+          <Icon name={game.hidden ? "eye" : "eyeOff"} size={14} /> {game.hidden ? "Mostrar nas listas" : "Ocultar"}
         </button>
         <button type="button" className="btn btn-sm btn-danger" onClick={onDelete}>
           <Icon name="trash" size={14} /> Excluir

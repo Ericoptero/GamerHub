@@ -109,6 +109,8 @@ export interface GameCard {
   /** O mais recente entre as contas. */
   last_played_at: string | null;
   enriched: boolean;
+  /** Fora das listas; só aparece em "Ocultos". */
+  hidden: boolean;
 }
 
 export interface Comment {
@@ -236,6 +238,7 @@ export interface GamePatch {
   genre_id?: number | null;
   status?: Status;
   priority?: Priority | null;
+  hidden?: boolean;
   hltb_main_hours?: number | null;
   hltb_extra_hours?: number | null;
   hltb_complete_hours?: number | null;

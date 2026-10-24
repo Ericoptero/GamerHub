@@ -85,8 +85,13 @@ export const usePending = (provider?: string) =>
     queryFn: () => api.get<PendingGame[]>(`/api/integrations/pending${qs({ provider })}`),
   });
 
-export const useJobs = (refetchInterval?: number | false) =>
-  useQuery({ queryKey: keys.jobs, queryFn: () => api.get<Job[]>("/api/jobs?limit=10"), refetchInterval });
+/** Os jobs mais recentes de um tipo (os vários "atualizar jogo" não empurram um lote para fora da lista). */
+export const useJobs = (kind: "enrich" | "library_sync", refetchInterval?: number | false) =>
+  useQuery({
+    queryKey: [...keys.jobs, kind],
+    queryFn: () => api.get<Job[]>(`/api/jobs${qs({ kind, limit: 10 })}`),
+    refetchInterval,
+  });
 
 const ACTIVE_JOB = new Set(["queued", "running"]);
 
@@ -143,6 +148,22 @@ export function useUpdateGame(id: number) {
       qc.invalidateQueries({ queryKey: keys.games });
       qc.invalidateQueries({ queryKey: keys.stores });
     },
+  });
+}
+
+/** Ocultar/mostrar direto do card: some da lista na hora. */
+export function useSetHidden() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, hidden }: { id: number; hidden: boolean }) =>
+      api.patch<GameDetail>(`/api/games/${id}`, { hidden }),
+    onMutate: async ({ id, hidden }) => {
+      await qc.cancelQueries({ queryKey: keys.games });
+      return { rollback: optimistic(qc, id, { hidden }) };
+    },
+    onError: (_e, _v, ctx) => ctx?.rollback(),
+    onSuccess: (game) => qc.setQueryData(keys.game(game.id), game),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.games }),
   });
 }
 

@@ -129,6 +129,7 @@ class GameCard(Out):
     account_ids: list[int] = []  # contas de loja que têm o jogo
     last_played_at: datetime | None = None  # o mais recente entre as contas
     enriched: bool = False
+    hidden: bool = False
 
 
 class CommentOut(Out):
@@ -260,6 +261,7 @@ class GamePatch(BaseModel):
     genre_id: int | None = None
     status: Status | None = None
     priority: Priority | None = None
+    hidden: bool | None = None
     hltb_main_hours: float | None = Field(default=None, ge=0)
     hltb_extra_hours: float | None = Field(default=None, ge=0)
     hltb_complete_hours: float | None = Field(default=None, ge=0)

@@ -1,13 +1,15 @@
-import { useMemo, useState, type CSSProperties } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useEffect, useLayoutEffect, useMemo, useState, type CSSProperties } from "react";
+import { Link, useLocation, useNavigationType, useSearchParams } from "react-router";
 
-import { useAccounts, useDevices, useGames } from "../../api/queries";
+import { errorMessage } from "../../api/client";
+import { useAccounts, useDevices, useGames, useSetHidden } from "../../api/queries";
 import type { Account, GameCard, Priority } from "../../api/types";
 import { Dialog } from "../../components/Dialog";
 import { GameCover } from "../../components/GameCover";
 import { Icon } from "../../components/Icon";
 import { ErrorState, LoadingState } from "../../components/NotFound";
 import { StoreMark } from "../../components/StoreMark";
+import { useToast } from "../../components/Toast";
 import { STATUS, STATUS_DOT, STORE_LABEL, mcColor } from "../../lib/constants";
 import { hrs } from "../../lib/format";
 import { usePrefs } from "../../lib/prefs";
@@ -31,6 +33,7 @@ import {
   type Tab,
 } from "./filters";
 import styles from "./LibraryPage.module.css";
+import { FROM_LIBRARY, rememberAnchor, rememberSearch, savedAnchor } from "./returnTo";
 import { deviceCounts, libraryStats, statusCounts } from "./selectors";
 
 const PRIO_PILLS: [Priority | "", string][] = [
@@ -40,36 +43,80 @@ const PRIO_PILLS: [Priority | "", string][] = [
   ["Baixa", "Baixa"],
 ];
 
-const TAB_LABEL = (t: Tab) => (t === "all" ? "Todos os jogos" : STATUS[t]);
-const TAB_DOT = (t: Tab) => (t === "all" ? "var(--muted)" : STATUS_DOT[t]);
+const ALIGN_FRAMES = 20;
+
+const TAB_LABEL = (t: Tab) => (t === "all" ? "Todos os jogos" : t === "hidden" ? "Ocultos" : STATUS[t]);
+const TAB_SHORT = (t: Tab) => (t === "all" ? "Todos" : t === "hidden" ? "Ocultos" : STATUS[t]);
+const tabDot = (t: Tab): CSSProperties =>
+  t === "hidden"
+    ? { background: "transparent", boxShadow: "inset 0 0 0 1.5px var(--muted)" }
+    : { background: t === "all" ? "var(--muted)" : STATUS_DOT[t] };
 
 export function LibraryPage() {
   const [sp, setSp] = useSearchParams();
+  const location = useLocation();
+  const navType = useNavigationType();
   const games = useGames();
   const devices = useDevices();
   const accounts = useAccounts();
+  const setHidden = useSetHidden();
+  const toast = useToast();
   const isMobile = useMediaQuery(MOBILE);
-  const [panelOpen, setPanelOpen] = useState(false);
+  // Voltando do detalhe pelo histórico: o card clicado e o painel de filtros como estavam.
+  const [restore] = useState(() => (navType === "POP" ? savedAnchor(location.key) : null));
+  const [panelOpen, setPanelOpen] = useState(restore?.panel ?? false);
   const f = parseFilters(sp);
   const urlKey = sp.toString();
 
-  const set = (next: Filters) => setSp(serializeFilters(next), { replace: true });
+  const set = (next: Filters) => setSp(serializeFilters(next), { replace: true, preventScrollReset: true });
   const patch = (p: Partial<Filters>) => set({ ...f, ...p });
 
   const all = games.data ?? [];
   const devs = devices.data ?? [];
   const accs = accounts.data ?? [];
+  const visible = useMemo(() => all.filter((g) => !g.hidden), [all]);
+  const hiddenCount = all.length - visible.length;
   const tabGames = useMemo(() => inTab(all, f.tab), [all, f.tab]);
   const list = useMemo(() => filterGames(all, devs, parseFilters(new URLSearchParams(urlKey))), [all, devs, urlKey]);
-  const counts = useMemo(() => statusCounts(all), [all]);
+  const counts = useMemo(() => statusCounts(visible), [visible]);
   const devCounts = useMemo(() => deviceCounts(tabGames, devs), [tabGames, devs]);
-  const stats = useMemo(() => libraryStats(all), [all]);
+  const stats = useMemo(() => libraryStats(visible), [visible]);
   const fc = useMemo(() => facets(tabGames, accs), [tabGames, accs]);
   const accountsById = useMemo(() => new Map(accs.map((a) => [a.id, a])), [accs]);
   const [prefs] = usePrefs();
   const devicesOf = useMemo(() => devicesByPlatform(devs), [devs]);
   const show = useMemo(() => cardDisplay(list, prefs.card, devicesOf), [list, prefs.card, devicesOf]);
   const sharedParts = sharedSummary(show.shared, accountsById);
+
+  useEffect(() => rememberSearch(urlKey), [urlKey]);
+
+  // Rola até o card clicado. Só a posição da janela não basta: a altura dos cards fora da tela é
+  // estimada (content-visibility) e a lista chegaria no lugar errado. Roda depois do ScrollRestoration.
+  const ready = games.isSuccess;
+  useLayoutEffect(() => {
+    if (!ready || !restore) return;
+    // Os cards que chegam perto da tela só ganham a altura de verdade nos quadros seguintes e empurram
+    // a lista: corrige por ~1/3 s, ou até a pessoa rolar.
+    let frame = 0;
+    let left = ALIGN_FRAMES;
+    const align = () => {
+      const el = document.querySelector(`[data-game="${restore.id}"]`);
+      if (!el) return;
+      const delta = el.getBoundingClientRect().top - restore.top;
+      if (Math.abs(delta) >= 1) window.scrollBy(0, delta);
+      if (--left > 0) frame = requestAnimationFrame(align);
+    };
+    const stop = () => cancelAnimationFrame(frame);
+    const input = new AbortController();
+    for (const ev of ["wheel", "touchstart", "keydown"]) {
+      window.addEventListener(ev, stop, { passive: true, signal: input.signal });
+    }
+    align();
+    return () => {
+      stop();
+      input.abort();
+    };
+  }, [ready, restore]);
 
   if (games.isError) return <ErrorState error={games.error} onRetry={() => games.refetch()} />;
   if (games.isPending) return <LoadingState text="Carregando sua biblioteca…" />;
@@ -82,6 +129,21 @@ export function LibraryPage() {
   const changeSort = (sort: SortKey) => patch({ sort, dir: SORTS[sort].dir });
   const singleDevice = f.devices.length === 1 ? f.devices[0] : null;
   const singlePrio = f.priorities.length === 1 ? f.priorities[0] : f.priorities.length ? null : "";
+  const tabs = TAB_ORDER.filter((k) => k !== "hidden" || hiddenCount > 0 || f.tab === "hidden");
+
+  const openGame = (id: number, top: number) => rememberAnchor(location.key, { id, top, panel: panelOpen });
+  const toggleHidden = (g: GameCard) => {
+    const hidden = !g.hidden;
+    // mutateAsync: cada clique tem o seu aviso, mesmo ocultando vários em seguida.
+    setHidden.mutateAsync({ id: g.id, hidden }).then(
+      () =>
+        toast.show(hidden ? `${g.name} foi para Ocultos.` : `${g.name} voltou para ${STATUS[g.status]}.`, "info", {
+          label: "Desfazer",
+          onClick: () => setHidden.mutate({ id: g.id, hidden: !hidden }),
+        }),
+      (e) => toast.error(`Não consegui ${hidden ? "ocultar" : "mostrar"} ${g.name}: ${errorMessage(e)}`),
+    );
+  };
 
   const panel = <FilterPanel f={f} onChange={set} facets={fc} devices={devs} accounts={accs} />;
 
@@ -91,7 +153,7 @@ export function LibraryPage() {
         <div className={styles.group}>
           <span className={`eyebrow ${styles.groupLabel}`}>Listas</span>
           <div className={styles.lists}>
-            {TAB_ORDER.map((k) => (
+            {tabs.map((k) => (
               <button
                 key={k}
                 type="button"
@@ -99,9 +161,11 @@ export function LibraryPage() {
                 aria-current={k === f.tab ? "page" : undefined}
                 onClick={() => changeTab(k)}
               >
-                <span className={styles.dot} style={{ background: TAB_DOT(k) }} aria-hidden="true" />
-                <span className={styles.sideLabel}>{k === "all" ? "Todos" : STATUS[k]}</span>
-                <span className={styles.sideCount}>{k === "all" ? all.length : counts[k]}</span>
+                <span className={styles.dot} style={tabDot(k)} aria-hidden="true" />
+                <span className={styles.sideLabel}>{TAB_SHORT(k)}</span>
+                <span className={styles.sideCount}>
+                  {k === "all" ? visible.length : k === "hidden" ? hiddenCount : counts[k]}
+                </span>
               </button>
             ))}
           </div>
@@ -259,6 +323,10 @@ export function LibraryPage() {
               <Link to="/integracoes">Importe a planilha, conecte uma conta Steam, Epic ou GOG</Link> ou{" "}
               <Link to="/adicionar">adicione um jogo</Link>.
             </div>
+          ) : f.tab === "hidden" && tabGames.length === 0 ? (
+            <div className="notice">
+              Nenhum jogo oculto. Para tirar um jogo das listas sem excluir, use o olho no canto da capa.
+            </div>
           ) : list.length === 0 ? (
             <div className="notice">
               Nenhum jogo com esses filtros.{" "}
@@ -271,7 +339,15 @@ export function LibraryPage() {
           ) : (
             <div className={styles.grid}>
               {list.map((g) => (
-                <Card key={g.id} game={g} accounts={accountsById} show={show} devicesOf={devicesOf} />
+                <Card
+                  key={g.id}
+                  game={g}
+                  accounts={accountsById}
+                  show={show}
+                  devicesOf={devicesOf}
+                  onOpen={openGame}
+                  onToggleHidden={toggleHidden}
+                />
               ))}
             </div>
           )}
@@ -303,11 +379,15 @@ function Card({
   accounts,
   show,
   devicesOf,
+  onOpen,
+  onToggleHidden,
 }: {
   game: GameCard;
   accounts: Map<number, Account>;
   show: CardDisplay;
   devicesOf: Map<number, string[]>;
+  onOpen: (id: number, top: number) => void;
+  onToggleHidden: (game: GameCard) => void;
 }) {
   const played = g.status === "done" || g.status === "dropped";
   const timeLabel = played
@@ -320,51 +400,68 @@ function Card({
   const owners = show.accounts ? g.account_ids.map((id) => accounts.get(id)).filter((a): a is Account => !!a) : [];
   const meta = metaLine(g, show, devicesOf);
   return (
-    <Link to={`/jogos/${g.id}`} className={styles.card} aria-label={`Abrir ${g.name}`}>
-      <GameCover
-        name={g.name}
-        platform={g.platform}
-        cover={g.cover}
-        footer={{
-          left: timeLabel,
-          right: g.metacritic_score !== null ? `MC ${g.metacritic_score}` : "MC —",
-          rightColor: mcColor(g.metacritic_score),
-        }}
-      />
-      <span className={styles.cardName}>
-        {g.status === "backlog" && g.priority && (
-          <span className={styles.prioDot} style={prioDot(g.priority)} aria-hidden="true" />
-        )}
-        <span className={styles.cardText}>{g.name}</span>
-      </span>
-      {meta && (
-        <span className={styles.meta} title={meta}>
-          {show.devices && <Icon name="device" size={12} strokeWidth={2} className={styles.metaIcon} />}
-          <span className={styles.metaText}>{meta}</span>
-        </span>
-      )}
-      {owners.length > 0 && (
-        <span className={styles.owners}>
-          {owners.slice(0, MAX_ACCOUNT_CHIPS).map((a) => (
-            <span key={a.id} className={styles.owner} title={`${STORE_LABEL[a.store]} · ${a.nickname}`}>
-              <StoreMark store={a.store} />
-              <span className="sr-only">{STORE_LABEL[a.store]} ·</span>
-              <span className={styles.ownerName}>{a.nickname}</span>
-            </span>
-          ))}
-          {owners.length > MAX_ACCOUNT_CHIPS && (
-            <span
-              className={styles.owner}
-              title={owners
-                .slice(MAX_ACCOUNT_CHIPS)
-                .map((a) => a.nickname)
-                .join(", ")}
-            >
-              +{owners.length - MAX_ACCOUNT_CHIPS}
-            </span>
+    <div className={styles.cardWrap} data-game={g.id}>
+      <Link
+        to={`/jogos/${g.id}`}
+        state={FROM_LIBRARY}
+        className={styles.card}
+        aria-label={`Abrir ${g.name}`}
+        onClick={(e) => onOpen(g.id, e.currentTarget.getBoundingClientRect().top)}
+      >
+        <GameCover
+          name={g.name}
+          platform={g.platform}
+          cover={g.cover}
+          footer={{
+            left: timeLabel,
+            right: g.metacritic_score !== null ? `MC ${g.metacritic_score}` : "MC —",
+            rightColor: mcColor(g.metacritic_score),
+          }}
+        />
+        <span className={styles.cardName}>
+          {g.status === "backlog" && g.priority && (
+            <span className={styles.prioDot} style={prioDot(g.priority)} aria-hidden="true" />
           )}
+          <span className={styles.cardText}>{g.name}</span>
         </span>
-      )}
-    </Link>
+        {meta && (
+          <span className={styles.meta} title={meta}>
+            {show.devices && <Icon name="device" size={12} strokeWidth={2} className={styles.metaIcon} />}
+            <span className={styles.metaText}>{meta}</span>
+          </span>
+        )}
+        {owners.length > 0 && (
+          <span className={styles.owners}>
+            {owners.slice(0, MAX_ACCOUNT_CHIPS).map((a) => (
+              <span key={a.id} className={styles.owner} title={`${STORE_LABEL[a.store]} · ${a.nickname}`}>
+                <StoreMark store={a.store} />
+                <span className="sr-only">{STORE_LABEL[a.store]} ·</span>
+                <span className={styles.ownerName}>{a.nickname}</span>
+              </span>
+            ))}
+            {owners.length > MAX_ACCOUNT_CHIPS && (
+              <span
+                className={styles.owner}
+                title={owners
+                  .slice(MAX_ACCOUNT_CHIPS)
+                  .map((a) => a.nickname)
+                  .join(", ")}
+              >
+                +{owners.length - MAX_ACCOUNT_CHIPS}
+              </span>
+            )}
+          </span>
+        )}
+      </Link>
+      <button
+        type="button"
+        className={styles.hideBtn}
+        onClick={() => onToggleHidden(g)}
+        aria-label={g.hidden ? `Mostrar ${g.name} nas listas` : `Ocultar ${g.name}`}
+        title={g.hidden ? "Mostrar nas listas" : "Ocultar (fica só em Ocultos)"}
+      >
+        <Icon name={g.hidden ? "eye" : "eyeOff"} size={16} />
+      </button>
+    </div>
   );
 }

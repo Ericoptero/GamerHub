@@ -26,24 +26,20 @@ const STATUS_TEXT: Record<Account["status"], string> = {
 export function AccountsCard() {
   const accounts = useAccounts();
   const meta = useMeta();
-  const jobs = useJobs(3000);
+  const jobs = useJobs("library_sync", 3000);
   const sync = useSyncAccounts();
   const toast = useToast();
   const [adding, setAdding] = useState<StoreName | null>(null);
   const [reconnecting, setReconnecting] = useState<Account | null>(null);
 
   const list = jobs.data ?? [];
-  const current = list.find((j) => j.kind === "library_sync" && isJobActive(j)) ?? null;
+  const current = list.find(isJobActive) ?? null;
   const watcher = useJobWatcher();
   const { start: watch, job: watched } = watcher;
   useEffect(() => {
     if (current && watched?.id !== current.id) watch(current);
   }, [current, watched?.id, watch]);
-  const shown =
-    (watched?.kind === "library_sync" ? watched : null) ??
-    current ??
-    list.find((j) => j.kind === "library_sync") ??
-    null;
+  const shown = (watched?.kind === "library_sync" ? watched : null) ?? current ?? list[0] ?? null;
 
   const accs = accounts.data ?? [];
   const syncingIds = new Set((current?.params.account_ids as number[] | undefined) ?? []);

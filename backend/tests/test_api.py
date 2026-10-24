@@ -142,6 +142,26 @@ def test_export_roundtrip(loaded, tmp_path):
     assert loaded.get(f"/api/games/{eastward['id']}").json()["comments"][0]["body"] == "nota de progresso"
 
 
+def test_hide_game(loaded):
+    gid = _find(loaded, "Eastward")["id"]
+    assert _find(loaded, "Eastward")["hidden"] is False
+    body = loaded.patch(f"/api/games/{gid}", json={"hidden": True}).json()
+    assert body["hidden"] is True and body["status"] == "done" and body["locked_fields"] == []
+    assert loaded.patch(f"/api/games/{gid}", json={"hidden": None}).json()["hidden"] is True
+    assert _find(loaded, "Eastward")["hidden"] is True
+
+    exported = loaded.get("/api/export.json").json()
+    assert next(g for g in exported["games"] if g["name"] == "Eastward")["hidden"] is True
+    for g in exported["games"]:
+        del g["hidden"]  # export de antes dos ocultos
+    r = loaded.post(
+        "/api/import/json?mode=substituir",
+        files={"file": ("export.json", json.dumps(exported).encode(), "application/json")},
+    )
+    assert r.status_code == 200, r.text
+    assert not any(g["hidden"] for g in loaded.get("/api/games").json())
+
+
 def test_backup_download(loaded):
     r = loaded.get("/api/backup.sqlite")
     assert r.status_code == 200 and r.content[:15] == b"SQLite format 3"
@@ -166,6 +186,7 @@ def test_integration_and_job_endpoints(loaded):
     batch = loaded.post("/api/jobs/enrich", json={"scope": "missing"}).json()
     assert batch["total"] == 240
     assert [j["id"] for j in loaded.get("/api/jobs").json()][:2] == [batch["id"], job["id"]]
+    assert [j["id"] for j in loaded.get("/api/jobs", params={"kind": "refresh"}).json()] == [job["id"]]
 
     job = loaded.put(f"/api/games/{gid}/links/metacritic", json={"external_id": "eastward"}).json()
     assert job["params"]["providers"] == ["metacritic"]

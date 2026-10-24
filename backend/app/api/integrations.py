@@ -111,7 +111,11 @@ def pending(provider: str | None = None, db: Session = Depends(get_db), user: Us
     open_links = select(ExternalLink.game_id).where(ExternalLink.status.in_(PENDING_STATUSES))
     if provider:
         open_links = open_links.where(ExternalLink.provider == provider)
-    q = select(Game).where(Game.user_id == user.id, Game.id.in_(open_links)).options(selectinload(Game.links))
+    q = (
+        select(Game)
+        .where(Game.user_id == user.id, Game.hidden.is_(False), Game.id.in_(open_links))
+        .options(selectinload(Game.links))
+    )
     games = sorted(db.scalars(q), key=lambda g: fold(g.name))
     return [
         PendingGameOut(
@@ -179,8 +183,17 @@ def enrich(data: EnrichIn, db: Session = Depends(get_db), user: User = Depends(c
 
 
 @router.get("/jobs", response_model=list[JobOut])
-def list_jobs(limit: int = Query(20, le=100), db: Session = Depends(get_db), user: User = Depends(current_user)):
-    return db.scalars(select(Job).where(Job.user_id == user.id).order_by(Job.id.desc()).limit(limit)).all()
+def list_jobs(
+    kind: str | None = None,
+    limit: int = Query(20, le=100),
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    """Os mais recentes primeiro. Com `kind`, só daquele tipo: os vários "atualizar jogo" não escondem um lote."""
+    q = select(Job).where(Job.user_id == user.id)
+    if kind:
+        q = q.where(Job.kind == kind)
+    return db.scalars(q.order_by(Job.id.desc()).limit(limit)).all()
 
 
 def _job(db: Session, user_id: int, job_id: int) -> Job:

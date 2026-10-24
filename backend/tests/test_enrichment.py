@@ -211,6 +211,39 @@ async def test_batch_job_resumes_and_skips_done(db, alien, fakes):
     assert sorted(job.params["done"]) == sorted(ids[:3])
 
 
+async def test_new_batch_leaves_out_games_another_batch_will_fetch(db, alien, fakes):
+    ids = jobs.select_game_ids(db, 1, EnrichIn(scope="missing"))
+    first = jobs.request_enrich(db, 1, EnrichIn(game_ids=ids[:5]))
+    first.params = {**first.params, "done": [ids[0]]}
+    db.commit()
+
+    second = jobs.request_enrich(db, 1, EnrichIn(scope="missing"))
+    assert second.total == len(ids) - 4 and not set(second.params["game_ids"]) & set(ids[1:5])
+    # Sem cache é outro pedido: o lote normal não cobre. Já o lote sem cache cobre um pedido normal.
+    forced = jobs.request_enrich(db, 1, EnrichIn(game_ids=ids[1:5], force=True))
+    assert forced.total == 4
+    jobs.cancel(db, first)
+    assert jobs.request_enrich(db, 1, EnrichIn(game_ids=ids[1:5])).total == 0
+    jobs.cancel(db, forced)
+    assert jobs.request_enrich(db, 1, EnrichIn(game_ids=ids[1:5])).total == 4
+
+
+async def test_batch_skips_game_updated_after_it_was_requested(db, alien, fakes):
+    batch = jobs.request_enrich(db, 1, EnrichIn(game_ids=[alien]))
+    await enrich_game(alien)  # o "atualizar" do jogo (ou o lote da sincronização) chegou antes
+    fetched = len(fakes["igdb"].fetches)
+    await jobs.run_job(batch.id)
+    db.expire_all()
+    job = db.get(Job, batch.id)
+    assert job.status == "done" and job.processed == job.succeeded == 1 and job.log == []
+    assert len(fakes["igdb"].fetches) == fetched
+
+    forced = jobs.request_enrich(db, 1, EnrichIn(game_ids=[alien], force=True))
+    await jobs.run_job(forced.id)
+    db.expire_all()
+    assert len(db.get(Job, forced.id).log) == 1 and len(fakes["igdb"].fetches) == fetched + 1
+
+
 async def test_cancelled_job_does_nothing(db, alien, fakes):
     job = jobs.request_refresh(db, db.get(Game, alien), RefreshIn())
     jobs.cancel(db, job)
@@ -257,3 +290,15 @@ async def test_worker_runs_refresh_while_batch_is_busy(db, alien, fakes, monkeyp
         release.set()
     finally:
         await worker.stop()
+
+
+async def test_parallel_progress_counts_every_game(db, alien, fakes):
+    """Até 3 jogos terminam juntos: nenhum incremento (nem id em "done") pode se perder."""
+    import asyncio
+
+    job = jobs.request_enrich(db, 1, EnrichIn(scope="missing"))
+    ids = job.params["game_ids"][:60]
+    await asyncio.gather(*(asyncio.to_thread(jobs._progress, job.id, gid, True, None) for gid in ids))
+    db.expire_all()
+    job = db.get(Job, job.id)
+    assert job.processed == job.succeeded == 60 and sorted(job.params["done"]) == sorted(ids)

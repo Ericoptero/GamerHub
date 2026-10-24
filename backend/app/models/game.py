@@ -30,6 +30,8 @@ class Game(Base):
     genre_id: Mapped[int | None] = mapped_column(ForeignKey("genres.id", ondelete="SET NULL"))
     status: Mapped[str] = mapped_column(String(20), default="backlog")
     priority: Mapped[str | None] = mapped_column(String(10))
+    # Fora de todas as listas; só aparece em "Ocultos".
+    hidden: Mapped[bool] = mapped_column(default=False)
 
     hltb_main_hours: Mapped[float | None] = mapped_column(Float)
     hltb_extra_hours: Mapped[float | None] = mapped_column(Float)

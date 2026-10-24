@@ -4,12 +4,14 @@ Tipos: "refresh"/"enrich" (metadados dos jogos) e "library_sync" (contas de loja
 Um job por vez em cada faixa (interativa, lote e sincronização); dentro de um job de
 metadados, até 3 jogos em paralelo.
 Os ids já processados ficam em params["done"], então um job interrompido por restart
-continua de onde parou.
+continua de onde parou. Um lote novo não repete jogos que outro lote ativo ainda vai buscar, e
+um lote sem "force" pula o jogo que já foi atualizado depois de ele ser pedido.
 """
 
 import asyncio
 import itertools
 import logging
+import threading
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import or_, select
@@ -28,6 +30,9 @@ REFRESH_PRIORITY = 0
 SYNC_PRIORITY = 3
 BATCH_PRIORITY = 5
 SYNC_KIND = "library_sync"
+# Os jogos de um lote terminam em paralelo (threads): sem a trava, dois _progress leem o mesmo
+# registro e um incremento (e o id em "done") se perde.
+_progress_lock = threading.Lock()
 
 
 def _now() -> datetime:
@@ -110,7 +115,16 @@ worker = Worker()
 
 
 def _create(db: Session, user_id: int, kind: str, params: dict, priority: int, total: int) -> Job:
-    job = Job(user_id=user_id, kind=kind, status="queued", priority=priority, params=params, total=total, log=[])
+    job = Job(
+        user_id=user_id,
+        kind=kind,
+        status="queued",
+        priority=priority,
+        params=params,
+        total=total,
+        log=[],
+        created_at=_now(),  # com microssegundos: o lote compara com o last_enriched_at dos jogos
+    )
     db.add(job)
     db.commit()
     worker.submit(job.id, priority, kind)
@@ -140,8 +154,23 @@ def select_game_ids(db: Session, user_id: int, data: EnrichIn) -> list[int]:
     return list(db.scalars(q))
 
 
+def _pending_in_batches(db: Session, user_id: int, force: bool) -> set[int]:
+    """Jogos que um lote ativo ainda vai buscar com todas as fontes (e sem cache, se `force`)."""
+    out: set[int] = set()
+    active = db.scalars(
+        select(Job).where(Job.user_id == user_id, Job.kind == "enrich", Job.status.in_(("queued", "running")))
+    )
+    for job in active:
+        p = job.params
+        if p.get("providers") or (force and not p.get("force")):
+            continue
+        out |= set(p.get("game_ids") or []) - set(p.get("done") or [])
+    return out
+
+
 def request_enrich(db: Session, user_id: int, data: EnrichIn) -> Job:
-    ids = select_game_ids(db, user_id, data)
+    queued = _pending_in_batches(db, user_id, data.force)
+    ids = [g for g in select_game_ids(db, user_id, data) if g not in queued]
     params = {"game_ids": ids, "providers": data.providers, "force": data.force, "rematch": False, "done": []}
     return _create(db, user_id, "enrich", params, BATCH_PRIORITY, len(ids))
 
@@ -193,8 +222,8 @@ def cancel(db: Session, job: Job) -> Job:
 # ---------- execução ----------
 
 
-def _load(job_id: int) -> tuple[str, int, dict] | None:
-    """Marca o job como rodando e devolve (tipo, dono, parâmetros)."""
+def _load(job_id: int) -> tuple[str, int, dict, datetime] | None:
+    """Marca o job como rodando e devolve (tipo, dono, parâmetros, quando foi pedido)."""
     with dbmod.new_session() as db:
         job = db.get(Job, job_id)
         if job is None or job.status not in ("queued", "running"):
@@ -202,7 +231,7 @@ def _load(job_id: int) -> tuple[str, int, dict] | None:
         job.status = "running"
         job.started_at = job.started_at or _now()
         db.commit()
-        return job.kind, job.user_id, dict(job.params)
+        return job.kind, job.user_id, dict(job.params), job.created_at
 
 
 def _status(job_id: int) -> str | None:
@@ -211,9 +240,15 @@ def _status(job_id: int) -> str | None:
         return job.status if job else None
 
 
-def _progress(job_id: int, item_id: int, ok: bool, line: str) -> None:
-    """Conta um item (jogo ou conta de loja) como processado; os ids feitos ficam em params["done"]."""
+def _enriched_since(game_id: int, since: datetime) -> bool:
     with dbmod.new_session() as db:
+        game = db.get(Game, game_id)
+        return game is not None and game.last_enriched_at is not None and game.last_enriched_at >= since
+
+
+def _progress(job_id: int, item_id: int, ok: bool, line: str | None) -> None:
+    """Conta um item (jogo ou conta de loja) como processado; os ids feitos ficam em params["done"]."""
+    with _progress_lock, dbmod.new_session() as db:
         job = db.get(Job, job_id)
         if job is None:
             return
@@ -223,7 +258,8 @@ def _progress(job_id: int, item_id: int, ok: bool, line: str) -> None:
         else:
             job.failed += 1
         job.params = {**job.params, "done": [*job.params.get("done", []), item_id]}
-        job.log = [*(job.log or []), line][-LOG_LINES:]
+        if line:
+            job.log = [*(job.log or []), line][-LOG_LINES:]
         db.commit()
 
 
@@ -243,7 +279,7 @@ async def run_job(job_id: int) -> None:
     loaded = await asyncio.to_thread(_load, job_id)
     if loaded is None:
         return
-    kind, user_id, params = loaded
+    kind, user_id, params, created_at = loaded
     if kind == SYNC_KIND:
         from app.library.sync import run_library_sync
 
@@ -251,11 +287,16 @@ async def run_job(job_id: int) -> None:
         return
     done = set(params.get("done") or [])
     pending = [g for g in params.get("game_ids") or [] if g not in done]
+    skip_fresh = kind == "enrich" and not params.get("force")
     sem = asyncio.Semaphore(GAMES_IN_PARALLEL)
 
     async def one(game_id: int) -> None:
         async with sem:
             if await asyncio.to_thread(_status, job_id) == "cancelled":
+                return
+            # Outro job já buscou este jogo depois do pedido (o lote da sincronização, um "atualizar").
+            if skip_fresh and await asyncio.to_thread(_enriched_since, game_id, created_at):
+                await asyncio.to_thread(_progress, job_id, game_id, True, None)
                 return
             try:
                 line, results = await enrich_game(

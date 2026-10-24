@@ -6,7 +6,7 @@ import type { EnrichIn } from "../../api/types";
 import { Icon } from "../../components/Icon";
 import { useToast } from "../../components/Toast";
 import { useJobWatcher } from "../../components/useJobWatcher";
-import { ACCENTS, JOB_KIND_SHORT, PROVIDER_LABEL } from "../../lib/constants";
+import { ACCENTS, JOB_STATUS_LABEL, PROVIDER_LABEL } from "../../lib/constants";
 import { fmtLocalDateTime } from "../../lib/format";
 import { usePrefs } from "../../lib/prefs";
 import { CardDisplayOptions } from "../library/CardDisplayMenu";
@@ -90,25 +90,28 @@ const SCOPES: { value: NonNullable<EnrichIn["scope"]>; label: string; help: stri
 function EnrichCard() {
   const [scope, setScope] = useState<NonNullable<EnrichIn["scope"]>>("missing");
   const [force, setForce] = useState(false);
-  const jobs = useJobs(3000);
+  const jobs = useJobs("enrich", 3000);
   const enrich = useEnrich();
   const toast = useToast();
   const list = jobs.data ?? [];
-  const current = list.find((j) => j.kind === "enrich" && isJobActive(j)) ?? null;
+  // Um lote roda por vez (os da sincronização das contas entram na mesma fila); os outros esperam.
+  const active = list.filter(isJobActive).sort((a, b) => a.id - b.id);
+  const current = active.find((j) => j.status === "running") ?? active[0] ?? null;
+  const waiting = active.filter((j) => j !== current);
   // Acompanha o lote em andamento (também se ele começou antes de abrir a página).
   const watcher = useJobWatcher();
   const { start: watch, job: watched } = watcher;
   useEffect(() => {
     if (current && watched?.id !== current.id) watch(current);
   }, [current, watched?.id, watch]);
-  const shown = (watched?.kind === "enrich" ? watched : null) ?? current ?? list.find((j) => j.kind === "enrich") ?? null;
+  const shown = (watched?.kind === "enrich" ? watched : null) ?? current ?? list[0] ?? null;
 
   const start = () =>
     enrich.mutate(
       { scope, force },
       {
         onSuccess: (job) => {
-          if (!job.total) return toast.show("Nenhum jogo para atualizar nesse escopo.");
+          if (!job.total) return toast.show("Nada para buscar: esses jogos já estão atualizados ou na fila.");
           watch(job);
           toast.show(`Enriquecimento iniciado: ${job.total} jogos.`, "ok");
         },
@@ -147,6 +150,13 @@ function EnrichCard() {
         </button>
       </div>
       {shown && <JobProgress job={shown} />}
+      {waiting.length > 0 && (
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+          Na fila depois deste:{" "}
+          {waiting.map((j) => `#${j.id} (${j.total} ${j.total === 1 ? "jogo" : "jogos"})`).join(", ")}. Começa
+          sozinho quando o atual terminar.
+        </p>
+      )}
       {list.length > 1 && (
         <details>
           <summary className={styles.summary}>Execuções recentes</summary>
@@ -155,7 +165,6 @@ function EnrichCard() {
               <thead>
                 <tr>
                   <th scope="col">#</th>
-                  <th scope="col">Tipo</th>
                   <th scope="col">Status</th>
                   <th scope="col">Itens</th>
                   <th scope="col">Início</th>
@@ -165,8 +174,7 @@ function EnrichCard() {
                 {list.map((j) => (
                   <tr key={j.id}>
                     <td>{j.id}</td>
-                    <td>{JOB_KIND_SHORT[j.kind] ?? j.kind}</td>
-                    <td>{j.status}</td>
+                    <td>{JOB_STATUS_LABEL[j.status] ?? j.status}</td>
                     <td>
                       {j.processed}/{j.total}
                       {j.failed ? ` (${j.failed} erro)` : ""}

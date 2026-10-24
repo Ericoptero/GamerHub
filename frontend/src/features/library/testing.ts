@@ -33,6 +33,7 @@ export function game(p: Partial<GameCard> & Pick<GameCard, "name">): GameCard {
     account_ids: [],
     last_played_at: null,
     enriched: true,
+    hidden: false,
     ...p,
   };
 }

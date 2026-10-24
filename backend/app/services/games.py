@@ -110,6 +110,7 @@ def to_card(g: Game, owned: Ownership | None = None) -> GameCard:
         account_ids=account_ids,
         last_played_at=last_played,
         enriched=g.last_enriched_at is not None,
+        hidden=g.hidden,
     )
 
 
@@ -258,7 +259,7 @@ def patch_game(db: Session, game: Game, patch: GamePatch) -> Game:
                 continue
             value = value.strip()
             game.name_norm = normalize_title(value)
-        if field == "status" and value is None:
+        if field in ("status", "hidden") and value is None:
             continue
         if field in META_FIELDS and getattr(game, field) != value:
             locked.add(field)

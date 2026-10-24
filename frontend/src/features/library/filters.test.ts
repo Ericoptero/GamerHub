@@ -117,6 +117,15 @@ describe("filtros", () => {
     expect(names(filterGames(games, devices, { ...emptyFilters("all"), q: "a" }))).toContain("Zelda TotK");
   });
 
+  it("oculto só aparece em Ocultos, de qualquer status", () => {
+    const list = [...games, game({ name: "Tetris", hidden: true }), game({ name: "Gris", status: "done", hidden: true })];
+    expect(run({}, list)).not.toContain("Tetris");
+    expect(names(filterGames(list, devices, emptyFilters("all")))).not.toContain("Gris");
+    expect(names(filterGames(list, devices, emptyFilters("hidden")))).toEqual(["Gris", "Tetris"]);
+    expect(serializeFilters(emptyFilters("hidden")).toString()).toBe("lista=ocultos");
+    expect(parseFilters(new URLSearchParams("lista=ocultos")).tab).toBe("hidden");
+  });
+
   it("filtra por loja, conta, tag, gênero, estúdio e várias contas", () => {
     expect(runOwned({ stores: ["Epic"] })).toEqual(["Hades", "Celeste"]);
     expect(runOwned({ accounts: [1] })).toEqual(["Portal 2", "Hades"]);

@@ -3,14 +3,19 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import styles from "./Toast.module.css";
 
 type Kind = "info" | "error" | "ok";
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
 interface ToastItem {
   id: number;
   text: string;
   kind: Kind;
+  action?: ToastAction;
 }
 
 interface ToastApi {
-  show: (text: string, kind?: Kind) => void;
+  show: (text: string, kind?: Kind, action?: ToastAction) => void;
   error: (text: string) => void;
 }
 
@@ -23,9 +28,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const dismiss = useCallback((id: number) => setItems((xs) => xs.filter((t) => t.id !== id)), []);
 
   const show = useCallback(
-    (text: string, kind: Kind = "info") => {
+    (text: string, kind: Kind = "info", action?: ToastAction) => {
       const id = ++seq.current;
-      setItems((xs) => [...xs.slice(-3), { id, text, kind }]);
+      setItems((xs) => [...xs.slice(-3), { id, text, kind, action }]);
       window.setTimeout(() => dismiss(id), kind === "error" ? 9000 : 6000);
     },
     [dismiss],
@@ -40,6 +45,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {items.map((t) => (
           <div key={t.id} className={`${styles.toast} ${styles[t.kind]}`}>
             <span className={styles.text}>{t.text}</span>
+            {t.action && (
+              <button
+                type="button"
+                className={styles.action}
+                onClick={() => {
+                  t.action?.onClick();
+                  dismiss(t.id);
+                }}
+              >
+                {t.action.label}
+              </button>
+            )}
             <button type="button" className={styles.close} onClick={() => dismiss(t.id)} aria-label="Fechar aviso">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
                 <path d="M6 6l12 12M18 6L6 18" />

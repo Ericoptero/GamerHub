@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from "react-router";
 
 import { UNAUTHORIZED_EVENT } from "../api/client";
 import { keys, useLogout, useMe } from "../api/queries";
@@ -59,6 +59,9 @@ export function Layout() {
         </Link>
         {me.data.auth_enabled && me.data.user && <UserMenu user={me.data.user} />}
       </header>
+      {/* Topo ao abrir uma página, posição de volta no "voltar". Fica antes do Outlet: a biblioteca
+          ajusta depois (rola até o card clicado). */}
+      <ScrollRestoration />
       <Outlet />
     </div>
   );

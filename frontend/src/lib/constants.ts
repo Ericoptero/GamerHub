@@ -55,8 +55,6 @@ export const JOB_KIND_LABEL: Record<string, string> = {
   library_sync: "Sincronização das contas",
 };
 
-export const JOB_KIND_SHORT: Record<string, string> = { refresh: "jogo", enrich: "lote", library_sync: "contas" };
-
 export const JOB_STATUS_LABEL: Record<string, string> = {
   queued: "na fila",
   running: "rodando",

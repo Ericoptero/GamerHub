@@ -122,6 +122,14 @@ def test_confirm_result_from_other_name_keeps_name_and_url(client):
     assert client.get("/api/integrations/pending").json() == []
 
 
+def test_pending_skips_hidden_games(client):
+    gid = _game(client, "Metroid Fusion")
+    _links(gid, igdb="not_found")
+    assert len(client.get("/api/integrations/pending").json()) == 1
+    client.patch(f"/api/games/{gid}", json={"hidden": True})
+    assert client.get("/api/integrations/pending").json() == []
+
+
 def test_pending_hides_other_users_games(client):
     gid = _game(client, "Metroid Fusion")
     _links(gid, igdb="not_found")
