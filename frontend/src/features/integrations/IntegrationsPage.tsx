@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 
 import { errorMessage } from "../../api/client";
-import { isJobActive, useEnrich, useJobs, useMeta } from "../../api/queries";
+import { isJobActive, useEnrich, useJobs, useMe, useMeta } from "../../api/queries";
 import type { EnrichIn } from "../../api/types";
 import { Icon } from "../../components/Icon";
 import { useToast } from "../../components/Toast";
@@ -40,15 +41,17 @@ export function IntegrationsPage() {
 // ---------- status das chaves ----------
 
 const PROVIDER_HELP: Record<string, string> = {
-  igdb: "Fonte principal: capa, descrição, história, screenshots e trailer. Precisa de IGDB_CLIENT_ID e IGDB_CLIENT_SECRET (app na Twitch).",
-  rawg: "Fallback de metadados e nota do Metacritic. Precisa de RAWG_API_KEY.",
+  igdb: "Fonte principal: capa, descrição, história, screenshots, trailer e tags. Precisa de uma chave (app grátis na Twitch).",
+  rawg: "Reserva de metadados, nota do Metacritic e tags da comunidade. Precisa de uma chave grátis.",
   hltb: "Tempos de jogo, por scraping do howlongtobeat.com. Não precisa de chave.",
   metacritic: "Metascore e reviews da crítica, pelo backend público do metacritic.com. Não precisa de chave.",
-  steam: "Contas Steam pela URL do perfil (lista de jogos e horas). Precisa de STEAM_API_KEY.",
+  steam: "Contas Steam pela URL do perfil (lista de jogos e horas). Precisa de uma chave grátis da Steam.",
 };
 
 function ProvidersCard() {
   const meta = useMeta();
+  const me = useMe();
+  const canManageKeys = !me.data?.auth_enabled || !!me.data.user?.is_admin;
   const providers = meta.data?.providers;
   return (
     <section aria-labelledby="h-prov" className="card">
@@ -71,8 +74,14 @@ function ProvidersCard() {
       </div>
       {providers && (!providers.igdb || !providers.rawg || !meta.data?.stores.steam) && (
         <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-          Para ativar, preencha as chaves no arquivo <code>.env</code> ao lado do <code>docker-compose.yml</code> (veja o{" "}
-          <code>.env.example</code>) e rode <code>docker compose up -d</code> de novo.
+          {canManageKeys ? (
+            <>
+              Para ativar, cadastre as chaves em <Link to="/configuracoes#chaves">Configurações</Link>, com o passo a passo
+              de onde conseguir cada uma.
+            </>
+          ) : (
+            <>As chaves valem para o servidor inteiro: peça para um administrador cadastrar em Configurações.</>
+          )}
         </p>
       )}
     </section>

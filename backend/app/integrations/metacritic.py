@@ -11,7 +11,6 @@ import re
 from datetime import date
 from urllib.parse import quote
 
-from app.config import get_settings
 from app.domain import fold
 from app.integrations.base import (
     Candidate,
@@ -25,6 +24,7 @@ from app.integrations.base import (
 )
 from app.integrations.http import RateLimitedClient
 from app.integrations.rawg import metacritic_slug
+from app.services import api_keys
 
 BACKEND = "https://backend.metacritic.com"
 SITE = "https://www.metacritic.com"
@@ -45,7 +45,7 @@ class MetacriticProvider:
         self._http = RateLimitedClient("metacritic", rate=1, per=1, concurrency=1)
 
     def _params(self, **params) -> dict:
-        key = get_settings().metacritic_api_key
+        key = api_keys.current().metacritic_api_key
         return {**params, "apiKey": key} if key else params
 
     async def _json(self, path: str, **params) -> dict:

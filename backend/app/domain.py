@@ -25,6 +25,30 @@ STATUS_SINGULAR = {
 # Dono de tudo quando o login está desligado (e de tudo o que existia antes do multiusuário).
 DEFAULT_USER_ID = 1
 
+# A página pública fica em /<username>: nomes que já são caminhos do app (rotas do frontend, da API e
+# arquivos servidos na raiz) não podem virar usuário.
+RESERVED_USERNAMES = frozenset(
+    {
+        "api",
+        "media",
+        "assets",
+        "docs",
+        "redoc",
+        "openapi.json",
+        "entrar",
+        "biblioteca",
+        "jogos",
+        "adicionar",
+        "consoles",
+        "integracoes",
+        "usuarios",
+        "configuracoes",
+        "favicon.svg",
+        "index.html",
+        "robots.txt",
+    }
+)
+
 PRIORITIES = ("Alta", "Media", "Baixa")
 PRIORITY_LABELS = {"Alta": "Alta", "Media": "Média", "Baixa": "Baixa"}
 
@@ -78,3 +102,36 @@ def normalize_title(text: str) -> str:
     if len(words) > 1 and words[0] == "the":
         words = words[1:]
     return " ".join(words)
+
+
+# A mesma tag com grafias diferentes entre IGDB e RAWG (a chave já ignora espaço, hífen e caixa).
+_TAG_ALIASES = {
+    "coop": "cooperative",
+    "scifi": "sciencefiction",
+    "rpg": "roleplayingrpg",
+    "platformer": "platform",
+    "simulation": "simulator",
+    "sports": "sport",
+    "massivelymultiplayer": "massivelymultiplayeronlinemmo",
+    "mmo": "massivelymultiplayeronlinemmo",
+    "sharedsplitscreen": "splitscreen",
+}
+
+
+def tag_key(tag: str) -> str:
+    key = re.sub(r"[^0-9a-z]", "", strip_accents(tag).casefold())
+    return _TAG_ALIASES.get(key, key)
+
+
+def merge_tags(*lists: list[str] | None) -> list[str]:
+    """Junta listas de tags sem repetir ("Single player" = "Singleplayer"); vale a primeira grafia."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for tags in lists:
+        for tag in tags or []:
+            tag = (tag or "").strip()
+            key = tag_key(tag)
+            if key and key not in seen:
+                seen.add(key)
+                out.append(tag)
+    return out

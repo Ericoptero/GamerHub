@@ -16,6 +16,8 @@ class User(Base):
     display_name: Mapped[str] = mapped_column(String(80))
     password_hash: Mapped[str | None] = mapped_column(String(255))
     is_admin: Mapped[bool] = mapped_column(default=False)
+    # Lista de jogos aberta a qualquer um em /<username> (só os cards, nunca os ocultos).
+    public_page: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.current_timestamp())
     last_login_at: Mapped[datetime | None]
 

@@ -5,6 +5,8 @@ import type {
   Account,
   AccountCreate,
   AccountPatch,
+  ApiKeys,
+  ApiKeysPatch,
   AuthMe,
   Candidate,
   Comment,
@@ -18,13 +20,17 @@ import type {
   GamePatch,
   Genre,
   Job,
+  KeyTestProvider,
+  KeyTestResult,
   LoginIn,
   Meta,
   PendingGame,
   Platform,
   PlatformIn,
   PlatformPatch,
+  ProfilePatch,
   ProviderName,
+  PublicProfile,
   RefreshIn,
   SignupIn,
   Store,
@@ -49,6 +55,8 @@ export const keys = {
   me: ["me"] as const,
   users: ["users"] as const,
   accounts: ["accounts"] as const,
+  apiKeys: ["api-keys"] as const,
+  publicProfile: (username: string) => ["public", username.toLowerCase()] as const,
 };
 
 // ---------- leitura ----------
@@ -433,3 +441,44 @@ export function useUserMutations() {
     remove: useMutation({ mutationFn: (id: number) => api.del(`/api/users/${id}`), onSuccess: done }),
   };
 }
+
+// ---------- configurações ----------
+
+export const useApiKeys = (enabled: boolean) =>
+  useQuery({ queryKey: keys.apiKeys, queryFn: () => api.get<ApiKeys>("/api/settings/keys"), enabled });
+
+export function useSaveApiKeys() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: ApiKeysPatch) => api.put<ApiKeys>("/api/settings/keys", patch),
+    onSuccess: (saved) => {
+      qc.setQueryData(keys.apiKeys, saved);
+      qc.invalidateQueries({ queryKey: keys.meta });
+    },
+  });
+}
+
+export const useTestApiKey = () =>
+  useMutation({
+    mutationFn: (provider: KeyTestProvider) => api.post<KeyTestResult>("/api/settings/keys/test", { provider }),
+  });
+
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: ProfilePatch) => api.patch<User>("/api/settings/profile", patch),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.me });
+      qc.invalidateQueries({ queryKey: ["public"] });
+    },
+  });
+}
+
+// ---------- página pública ----------
+
+export const usePublicProfile = (username: string) =>
+  useQuery({
+    queryKey: keys.publicProfile(username),
+    queryFn: () => api.get<PublicProfile>(`/api/public/${encodeURIComponent(username)}`),
+    staleTime: 60_000,
+  });

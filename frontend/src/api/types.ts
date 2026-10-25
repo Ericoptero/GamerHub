@@ -71,7 +71,7 @@ export interface Meta {
   priorities: Record<Priority, string>;
   device_kinds: string[];
   providers: ProvidersStatus;
-  /** Loja -> dá para conectar contas (a Steam precisa de STEAM_API_KEY). */
+  /** Loja -> dá para conectar contas (a Steam precisa da chave cadastrada em Configurações). */
   stores: Record<StoreName, boolean>;
   library_sync_hour: number;
 }
@@ -392,6 +392,14 @@ export interface User {
   username: string;
   display_name: string;
   is_admin: boolean;
+  /** A lista de jogos aparece em /<username> para qualquer um. */
+  public_page: boolean;
+}
+
+export interface ProfilePatch {
+  username?: string;
+  display_name?: string;
+  public_page?: boolean;
 }
 
 export interface UserAdmin extends User {
@@ -457,4 +465,50 @@ export interface AccountCreate {
 export interface AccountPatch {
   nickname?: string;
   enabled?: boolean;
+}
+
+// ---------- configurações do servidor ----------
+
+export type ApiKeyName = "igdb_client_id" | "igdb_client_secret" | "rawg_api_key" | "metacritic_api_key" | "steam_api_key";
+
+export interface ApiKeyState {
+  configured: boolean;
+  /** Só o fim da chave ("••••1a2b"); a chave inteira nunca volta do servidor. */
+  preview: string | null;
+}
+
+export type ApiKeys = Record<ApiKeyName, ApiKeyState>;
+/** Campo ausente fica como está; "" apaga. */
+export type ApiKeysPatch = Partial<Record<ApiKeyName, string>>;
+export type KeyTestProvider = "igdb" | "rawg" | "steam";
+
+export interface KeyTestResult {
+  ok: boolean;
+  message: string;
+}
+
+// ---------- página pública ----------
+
+export interface PublicGameCard {
+  id: number;
+  name: string;
+  platform: string;
+  genre: string | null;
+  status: Status;
+  user_score: number | null;
+  metacritic_score: number | null;
+  hltb_main_hours: number | null;
+  played_hours: number | null;
+  times_completed: number | null;
+  finished_at: string | null;
+  finished_label: string | null;
+  release_date: string | null;
+  cover: string | null;
+  tags: string[];
+}
+
+export interface PublicProfile {
+  username: string;
+  display_name: string;
+  games: PublicGameCard[];
 }

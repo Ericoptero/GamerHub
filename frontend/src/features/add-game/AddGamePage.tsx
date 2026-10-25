@@ -99,8 +99,8 @@ function IntegrationSearch({ onManual }: { onManual: () => void }) {
       <section className="card">
         <h2 className="section-title">Nenhuma integração de busca configurada</h2>
         <p className="lead">
-          Para buscar jogos, configure as chaves do IGDB e/ou da RAWG no arquivo <code>.env</code> do servidor e reinicie o
-          container. Veja os detalhes em <Link to="/integracoes">Integrações</Link>.
+          Para buscar jogos, cadastre a chave do IGDB e/ou da RAWG em{" "}
+          <Link to="/configuracoes#chaves">Configurações</Link>, com o passo a passo de onde conseguir cada uma.
         </p>
         <button type="button" className="btn" style={{ alignSelf: "flex-start" }} onClick={onManual}>
           Cadastrar à mão

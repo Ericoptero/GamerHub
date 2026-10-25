@@ -154,7 +154,7 @@ async def test_steam_private_profile():
 
 
 async def test_steam_without_key():
-    with pytest.raises(ProviderError, match="STEAM_API_KEY"):
+    with pytest.raises(ProviderError, match="chave da Steam"):
         await SteamClient("").fetch_library(STEAMID, {}, Saved(), known=set())
 
 

@@ -3,12 +3,12 @@ import { Link, useParams } from "react-router";
 
 import { ApiError, errorMessage } from "../../api/client";
 import { useDeleteGame, useDevices, useGame, useUpdateGame } from "../../api/queries";
-import type { GameDetail, Status } from "../../api/types";
+import type { GameDetail, GamePatch, Priority, Status } from "../../api/types";
 import { useConfirm } from "../../components/Confirm";
 import { ErrorState, LoadingState, NotFound } from "../../components/NotFound";
 import { useToast } from "../../components/Toast";
 import { useJobWatcher } from "../../components/useJobWatcher";
-import { STATUS1 } from "../../lib/constants";
+import { PRIORITY_LABEL, STATUS, STATUS1 } from "../../lib/constants";
 import { palette } from "../../lib/cover";
 import { parseUtc, todayIso } from "../../lib/format";
 import { useBackToLibrary } from "../library/returnTo";
@@ -61,13 +61,33 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
   const enriching = enrichPoll(game) !== false;
 
   const move = (status: Status) => {
-    const patch: { status: Status; finished_at?: string } = { status };
-    if (status === "done" && !game.finished_at) patch.finished_at = todayIso();
+    const patch: GamePatch = { status };
+    // Desfazer volta à lista anterior e apaga a data de término que a mudança tenha posto.
+    const undo: GamePatch = { status: game.status };
+    if (status === "done" && !game.finished_at) {
+      patch.finished_at = todayIso();
+      undo.finished_at = null;
+    }
     update.mutate(patch, {
-      onSuccess: () => toast.show(`${game.name}: ${STATUS1[status].toLowerCase()}.`, "ok"),
+      onSuccess: () =>
+        toast.show(`${game.name} agora está em ${STATUS[status]}${undo.finished_at === null ? ", terminado hoje" : ""}.`, "ok", {
+          label: "Desfazer",
+          onClick: () => update.mutate(undo, { onError: (e) => toast.error(`Não consegui desfazer: ${errorMessage(e)}`) }),
+        }),
       onError: (e) => toast.error(`Não consegui mover: ${errorMessage(e)}`),
     });
   };
+
+  const setPriority = (priority: Priority | null) =>
+    update.mutate(
+      { priority },
+      {
+        onError: (e) =>
+          toast.error(
+            `Não consegui mudar a prioridade${priority ? ` para ${PRIORITY_LABEL[priority].toLowerCase()}` : ""}: ${errorMessage(e)}`,
+          ),
+      },
+    );
 
   const toggleHidden = () => {
     const hidden = !game.hidden;
@@ -106,7 +126,7 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
 
   return (
     <div style={{ "--c0": c0, "--c1": c1 } as CSSProperties}>
-      <Hero game={game} onMove={move} busy={update.isPending} />
+      <Hero game={game} onMove={move} onPriority={setPriority} busy={update.isPending} />
       <div className={styles.body}>
         <div className={styles.mainCol}>
           {enriching && (

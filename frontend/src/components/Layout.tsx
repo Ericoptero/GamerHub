@@ -52,6 +52,15 @@ export function Layout() {
           <NavLink to="/integracoes" className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navOn : ""}`}>
             Integrações
           </NavLink>
+          <NavLink
+            to="/configuracoes"
+            aria-label="Configurações"
+            className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navOn : ""}`}
+          >
+            {/* No celular vira só a engrenagem, para caber sem rolar o menu. */}
+            <Icon name="settings" className={styles.navIcon} />
+            <span className={styles.navText}>Configurações</span>
+          </NavLink>
         </nav>
         <Link to="/adicionar" className={`btn btn-primary ${styles.add}`} aria-label="Adicionar jogo">
           <Icon name="plus" strokeWidth={2.6} />

@@ -92,7 +92,7 @@ class Meta(BaseModel):
     priorities: dict[str, str]
     device_kinds: list[str]
     providers: ProvidersStatus
-    stores: dict[str, bool] = {}  # loja -> dá para conectar contas (Steam precisa de STEAM_API_KEY)
+    stores: dict[str, bool] = {}  # loja -> dá para conectar contas (Steam precisa da chave em Configurações)
     library_sync_hour: int = 5
 
 
@@ -367,6 +367,7 @@ class UserOut(Out):
     username: str
     display_name: str
     is_admin: bool
+    public_page: bool = True
 
 
 class UserAdminOut(UserOut):
@@ -409,6 +410,80 @@ class PasswordResetIn(BaseModel):
 class UserPatch(BaseModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=80)
     is_admin: bool | None = None
+
+
+class ProfilePatch(BaseModel):
+    """O próprio usuário: nome (vira o endereço da página pública), nome de exibição e a página."""
+
+    username: Username | None = None
+    display_name: str | None = Field(default=None, min_length=1, max_length=80)
+    public_page: bool | None = None
+
+
+# ---------- configurações do servidor ----------
+
+KeyValue = Annotated[str, Field(max_length=300)]
+
+
+class ApiKeyState(BaseModel):
+    configured: bool
+    preview: str | None  # só o fim da chave ("••••1a2b"); a chave inteira nunca sai
+
+
+class ApiKeysOut(BaseModel):
+    igdb_client_id: ApiKeyState
+    igdb_client_secret: ApiKeyState
+    rawg_api_key: ApiKeyState
+    metacritic_api_key: ApiKeyState
+    steam_api_key: ApiKeyState
+
+
+class ApiKeysIn(BaseModel):
+    """Campo ausente fica como está; string vazia apaga a chave."""
+
+    igdb_client_id: KeyValue | None = None
+    igdb_client_secret: KeyValue | None = None
+    rawg_api_key: KeyValue | None = None
+    metacritic_api_key: KeyValue | None = None
+    steam_api_key: KeyValue | None = None
+
+
+class KeyTestIn(BaseModel):
+    provider: Literal["igdb", "rawg", "steam"]
+
+
+class KeyTestOut(BaseModel):
+    ok: bool
+    message: str
+
+
+# ---------- página pública ----------
+
+
+class PublicGameCard(BaseModel):
+    """Só o que aparece no card público: nada de contas, comentários, prioridade ou datas internas."""
+
+    id: int
+    name: str
+    platform: str
+    genre: str | None
+    status: Status
+    user_score: int | None
+    metacritic_score: int | None
+    hltb_main_hours: float | None
+    played_hours: float | None
+    times_completed: int | None
+    finished_at: date | None
+    finished_label: str | None
+    release_date: date | None
+    cover: str | None
+    tags: list[str] = []
+
+
+class PublicProfile(BaseModel):
+    username: str
+    display_name: str
+    games: list[PublicGameCard]
 
 
 # ---------- contas de loja ----------

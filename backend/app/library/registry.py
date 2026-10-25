@@ -1,12 +1,12 @@
 """Instâncias únicas dos clientes das lojas (criadas sob demanda, fechadas no shutdown)."""
 
-from app.config import get_settings
 from app.library.base import StoreClient
 from app.library.epic import LOGIN_URL as EPIC_LOGIN_URL
 from app.library.epic import EpicClient
 from app.library.gog import LOGIN_URL as GOG_LOGIN_URL
 from app.library.gog import GogClient
 from app.library.steam import SteamClient
+from app.services import api_keys
 
 LOGIN_URLS = {"epic": EPIC_LOGIN_URL, "gog": GOG_LOGIN_URL}
 
@@ -16,7 +16,7 @@ _clients: dict[str, StoreClient] = {}
 def get_store_client(store: str) -> StoreClient:
     if store not in _clients:
         factories = {
-            "steam": lambda: SteamClient(get_settings().steam_api_key),
+            "steam": lambda: SteamClient(api_keys.current().steam_api_key),
             "epic": EpicClient,
             "gog": GogClient,
         }
@@ -31,8 +31,14 @@ def set_store_client(store: str, client: StoreClient) -> None:
     _clients[store] = client
 
 
+def apply_keys(keys: api_keys.ApiKeys) -> None:
+    steam = _clients.get("steam")
+    if isinstance(steam, SteamClient):
+        steam.api_key = keys.steam_api_key
+
+
 def stores_status() -> dict[str, bool]:
-    return {"steam": bool(get_settings().steam_api_key), "epic": True, "gog": True}
+    return {"steam": bool(api_keys.current().steam_api_key), "epic": True, "gog": True}
 
 
 async def close_store_clients() -> None:

@@ -9,6 +9,8 @@
   "videos": [{"id": 1, "name": "Gameplay", "video_id": "AAAAAAAAAAA"}, {"id": 2, "name": "Launch Trailer", "video_id": "UAO2urG23S4"}],
   "genres": [{"id": 8, "name": "Platform"}, {"id": 31, "name": "Adventure"}],
   "themes": [{"id": 1, "name": "Action"}],
+  "player_perspectives": [{"id": 4, "name": "Side view"}],
+  "game_modes": [{"id": 1, "name": "Single player"}],
   "aggregated_rating": 88.7, "aggregated_rating_count": 21,
   "involved_companies": [{"id": 1, "company": {"id": 1, "name": "Team Cherry"}, "developer": true, "publisher": true}]}
 ]

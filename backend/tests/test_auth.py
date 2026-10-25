@@ -131,7 +131,13 @@ def test_guard_header_media_and_expired_session(app_with_auth):
         assert bare.post("/api/games", json={"name": "X", "platform_id": 1}).status_code == 403  # sem X-GamerHub
         assert bare.get("/api/games").status_code == 200
 
-        assert TestClient(app_with_auth).get("/media/1/cover.webp").status_code == 401
+        anon = TestClient(app_with_auth)
+        # Jogo de quem tem página pública: a imagem passa do guarda (404 porque o arquivo não existe).
+        assert anon.get("/media/1/cover.webp").status_code == 404
+        assert anon.get("/media/999/cover.webp").status_code == 401
+        assert anon.get("/media/x.webp").status_code == 401
+        assert c.patch("/api/settings/profile", json={"public_page": False}).status_code == 200
+        assert anon.get("/media/1/cover.webp").status_code == 401
         assert c.get("/media/1/cover.webp").status_code == 404  # logado: passa do guarda, arquivo não existe
 
         with dbmod.new_session() as db:

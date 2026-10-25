@@ -9,7 +9,7 @@ from app.auth.deps import current_user, session_user_id
 from app.auth.passwords import DUMMY_HASH, hash_password, verify_password
 from app.config import get_settings
 from app.db import get_db
-from app.domain import DEFAULT_USER_ID
+from app.domain import DEFAULT_USER_ID, RESERVED_USERNAMES
 from app.models import User
 from app.schemas import AuthMe, LoginIn, PasswordChangeIn, SignupIn, UserOut
 from app.seed.seed_data import seed_devices
@@ -47,6 +47,14 @@ def username_taken(db: Session, username: str, exclude_id: int | None = None) ->
     return found is not None and found != exclude_id
 
 
+def check_username(db: Session, username: str, exclude_id: int | None = None) -> None:
+    """O nome vira o endereço da página pública (/<username>), então não pode ser um caminho do app."""
+    if username.casefold() in RESERVED_USERNAMES:
+        raise HTTPException(422, f"“{username}” é usado pelo app. Escolha outro nome de usuário.")
+    if username_taken(db, username, exclude_id):
+        raise HTTPException(409, "Esse nome de usuário já existe")
+
+
 @router.get("/me", response_model=AuthMe)
 def me(request: Request, db: Session = Depends(get_db)):
     settings = get_settings()
@@ -70,8 +78,7 @@ def signup(data: SignupIn, request: Request, response: Response, db: Session = D
     if not setup and not get_settings().auth_allow_signup:
         raise HTTPException(403, "Cadastro fechado. Peça para um administrador criar sua conta.")
     username = data.username.strip()
-    if username_taken(db, username, exclude_id=DEFAULT_USER_ID if setup else None):
-        raise HTTPException(409, "Esse nome de usuário já existe")
+    check_username(db, username, exclude_id=DEFAULT_USER_ID if setup else None)
     display = (data.display_name or "").strip() or username
     if setup:
         user = db.get(User, DEFAULT_USER_ID)

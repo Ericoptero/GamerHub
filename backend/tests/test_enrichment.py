@@ -5,6 +5,7 @@ from datetime import date
 import pytest
 from sqlalchemy import select
 
+from app.domain import merge_tags
 from app.enrichment import jobs
 from app.enrichment.orchestrator import enrich_game
 from app.integrations import registry
@@ -80,6 +81,8 @@ def fakes(db, monkeypatch):
             MetadataPatch(
                 description="RAWG desc",
                 background_url="https://img/rawg-bg.jpg",
+                tags=["Atmospheric", "horror", "Singleplayer"],
+                genres=["Action", "Shooter"],
                 metacritic=Scores(metascore=79, source="rawg"),
                 hints={"metacritic_slug": "alien-isolation"},
             ),
@@ -130,7 +133,8 @@ async def test_merge_precedence(db, alien, fakes):
     assert (g.metacritic_score, g.metacritic_source, g.metacritic_user_score) == (81, "metacritic", 8.7)
     assert (g.hltb_main_hours, g.hltb_extra_hours, g.hltb_complete_hours) == (18.5, 23.0, 33.5)
     assert g.release_date is None or isinstance(g.release_date, date)
-    assert g.tags == ["Shooter", "Horror"] and g.developer == "Creative Assembly"
+    assert g.tags == ["Shooter", "Horror", "Atmospheric", "Singleplayer"]  # IGDB + comunidade, sem repetir
+    assert g.developer == "Creative Assembly"
     assert [m.provider_ref for m in g.media if m.kind == "screenshot"] == ["s1", "s2"]
     assert [m.provider for m in g.media if m.kind == "video"] == ["igdb"]
     assert sorted(r.provider for r in g.store_reviews) == ["igdb", "metacritic"]
@@ -153,6 +157,56 @@ async def test_locked_and_empty_never_overwrite(db, alien, fakes):
     assert g.hltb_main_hours == 99.0 and g.description == "minha descrição"
     assert g.hltb_extra_hours == 23.0  # não travado
     assert g.storyline == "já tinha"  # IGDB não trouxe storyline: não apaga
+
+
+async def test_tags_merge_sources_and_keep_the_one_that_did_not_run(db, alien, fakes):
+    await enrich_game(alien)
+    fakes["rawg"].patch = fakes["rawg"].patch.model_copy(update={"tags": ["Survival Horror"]})
+    await enrich_game(alien, ["rawg"], force=True)  # só a RAWG: as tags do IGDB ficam
+    assert load(db, alien).tags == ["Survival Horror", "Shooter", "Horror", "Atmospheric", "Singleplayer"]
+
+    fakes["igdb"].error = "igdb: fora do ar"
+    await enrich_game(alien, force=True)  # IGDB falhou: soma, não troca (sem os gêneros da RAWG no lugar)
+    assert load(db, alien).tags == ["Survival Horror", "Shooter", "Horror", "Atmospheric", "Singleplayer"]
+
+    fakes["igdb"].error = None
+    await enrich_game(alien, force=True)  # as duas responderam: a lista é trocada
+    assert load(db, alien).tags == ["Shooter", "Horror", "Survival Horror"]
+
+    g = load(db, alien)
+    g.locked_fields = ["tags"]
+    g.tags = ["Minha tag"]
+    db.commit()
+    await enrich_game(alien)
+    assert load(db, alien).tags == ["Minha tag"]
+
+
+def test_merge_tags_folds_spellings():
+    assert merge_tags(
+        ["Role-playing (RPG)", "Single player", "Science fiction", "Co-operative"],
+        ["RPG", "Singleplayer", "Sci-fi", "Co-op", "cooperative", "Metroidvania", ""],
+        None,
+    ) == ["Role-playing (RPG)", "Single player", "Science fiction", "Co-operative", "Metroidvania"]
+
+
+async def test_refetch_keeps_same_media_rows(db, alien, fakes):
+    await enrich_game(alien)
+    first = {m.url: m.id for m in load(db, alien).media}
+    g = load(db, alien)
+    next(m for m in g.media if m.provider_ref == "s1").local_path = "84/s1.webp"
+    db.commit()
+    shots = fakes["igdb"].patch.screenshots
+    fakes["igdb"].patch = fakes["igdb"].patch.model_copy(
+        update={"screenshots": [shots[1], MediaRef(url="https://img/s3.jpg", ref="s3"), shots[0]]}
+    )
+    await enrich_game(alien, force=True)  # antes: UNIQUE constraint failed: media.game_id, media.kind, media.url
+    g = load(db, alien)
+    shots = sorted((m for m in g.media if m.kind == "screenshot"), key=lambda m: m.position)
+    assert [m.provider_ref for m in shots] == ["s2", "s3", "s1"]
+    assert {m.url: m.id for m in g.media if m.provider_ref in ("s1", "s2")} == {
+        u: i for u, i in first.items() if u.endswith(("s1.jpg", "s2.jpg"))
+    }
+    assert shots[2].local_path == "84/s1.webp"  # o arquivo baixado continua valendo
 
 
 async def test_provider_error_is_isolated(db, alien, fakes):

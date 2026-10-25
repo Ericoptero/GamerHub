@@ -77,6 +77,7 @@ async def test_igdb_search_and_fetch():
     assert patch.hltb.main == 27.0 and patch.hltb.complete == 62.5
     assert patch.reviews[0].score_norm == 89
     assert str(patch.release_date) == "2017-02-24"
+    assert patch.tags == ["Platform", "Adventure", "Action", "Side view", "Single player"]
 
 
 async def test_igdb_refreshes_token_on_401():
@@ -127,6 +128,12 @@ async def test_rawg_search_fetch_and_retry():
     assert patch.hints == {"metacritic_slug": "hollow-knight"}
     assert len(patch.screenshots) == 2 and patch.videos == []
     assert patch.reviews[0].score_norm == 88
+    # tags da comunidade em inglês, sem o ruído de loja (conquistas, nuvem, controle, cartas)
+    assert patch.tags == [
+        "Singleplayer", "Atmospheric", "Great Soundtrack", "Exploration", "Difficult",
+        "Metroidvania", "Side Scroller", "2D", "Souls-like",
+    ]  # fmt: skip
+    assert patch.genres == ["Adventure", "Platformer"]
 
 
 def test_rawg_helpers():

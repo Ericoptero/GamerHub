@@ -110,35 +110,120 @@
   color: var(--text-2);
 }
 
-.moves {
+/* Seletor de lista: as seis listas à vista, a atual marcada. */
+.picker {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
   margin-top: 4px;
+  max-width: 980px;
+}
+
+.pickerLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-2);
+}
+
+.moves {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
 }
 
 .move {
-  height: 44px;
-  padding: 0 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(8, 10, 14, 0.5);
+  height: var(--tap);
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(8, 10, 14, 0.55);
   color: var(--text);
+  font: inherit;
   font-weight: 600;
   font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
 }
 
-.movePrimary {
-  height: 44px;
-  padding: 0 18px;
-  border-radius: 8px;
-  border: 0;
-  background: var(--accent);
-  color: var(--on-accent);
+.move:hover,
+.move:focus-visible {
+  border-color: var(--dot);
+  background: color-mix(in srgb, var(--dot) 12%, rgba(8, 10, 14, 0.6));
+}
+
+.move[aria-disabled="true"] {
+  cursor: progress;
+}
+
+.moveDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--dot);
+}
+
+.moveCheck {
+  flex: none;
+  color: var(--dot);
+}
+
+.moveOn,
+.moveOn:hover {
+  border-color: var(--dot);
+  background: color-mix(in srgb, var(--dot) 24%, rgba(8, 10, 14, 0.7));
   font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
+  cursor: default;
+}
+
+.pickerHint {
+  margin: 0;
+  min-height: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.pickerHint strong {
+  color: var(--text);
+}
+
+/* Prioridade: mesma cara do seletor de lista, em botões menores numa linha só. */
+.prioRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.prios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.prio {
+  padding: 0 14px;
+}
+
+.dotRing {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--dot);
+}
+
+.prioNote {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 /* ---------- corpo ---------- */
@@ -639,6 +724,52 @@
   overflow-wrap: anywhere;
 }
 
+.tagsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.tagsLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  color: var(--muted);
+}
+
+.tagsLabel .lockBtn {
+  margin-left: 0;
+}
+
+/* Cada tag abre a biblioteca filtrada por ela. */
+.tagLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tagLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--bg-chip);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-decoration: none;
+}
+
+.tagLink:hover {
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
 .footerNote {
   color: var(--muted);
   font-size: 12px;
@@ -675,6 +806,17 @@
   .score {
     width: 40px;
     height: 44px;
+  }
+
+  /* As quatro prioridades ocupam a linha toda no celular; em tela bem estreita, quebram. */
+  .prios {
+    width: 100%;
+  }
+
+  .prio {
+    flex: 1 1 auto;
+    padding: 0 8px;
+    justify-content: center;
   }
 }
 

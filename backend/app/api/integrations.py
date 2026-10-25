@@ -57,7 +57,7 @@ async def search(
     jogo no site da integração: aí volta só aquele jogo."""
     prov = get_provider(provider)
     if not prov.enabled:
-        raise HTTPException(409, f"{provider.upper()} não configurado (veja o .env)")
+        raise HTTPException(409, f"{provider.upper()} sem chave: cadastre em Configurações")
     if game_id is not None:
         get_game(db, user.id, game_id)  # 404 se não for do usuário
         snap = load_snapshot(game_id)

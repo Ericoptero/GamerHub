@@ -60,7 +60,7 @@ def _account(db: Session, user_id: int, account_id: int) -> LibraryAccount:
 async def _connect(store: str, ref: str) -> StoreProfile:
     client = get_store_client(store)
     if not client.enabled:
-        raise HTTPException(409, "Configure STEAM_API_KEY no .env para conectar contas Steam")
+        raise HTTPException(409, "Cadastre a chave da Steam Web API em Configurações para conectar contas Steam")
     try:
         return await client.connect(ref)
     except ProviderError as e:

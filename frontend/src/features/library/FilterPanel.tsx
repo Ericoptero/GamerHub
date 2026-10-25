@@ -179,7 +179,7 @@ function Pills<K extends string | number>({
   );
 }
 
-function TagPicker({
+export function TagPicker({
   tags,
   selected,
   onToggle,

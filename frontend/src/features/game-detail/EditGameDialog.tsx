@@ -4,9 +4,10 @@ import { errorMessage } from "../../api/client";
 import { useGenres, usePlatforms, useUpdateGame } from "../../api/queries";
 import type { GameDetail, GamePatch, Priority, Status } from "../../api/types";
 import { Dialog } from "../../components/Dialog";
+import { Icon } from "../../components/Icon";
 import { PRIORITIES, PRIORITY_LABEL, STATUS1, STATUS_ORDER } from "../../lib/constants";
 import { numToInput, parseNum } from "../../lib/format";
-import { splitList } from "../../lib/text";
+import { fold, splitList } from "../../lib/text";
 
 interface FormState {
   name: string;
@@ -47,7 +48,7 @@ function initial(g: GameDetail): FormState {
 }
 
 /** Só os campos que mudaram (editar um metadado o trava contra a integração). */
-function diff(g: GameDetail, f: FormState): GamePatch {
+function diff(g: GameDetail, f: FormState, tags: string[]): GamePatch {
   const p: GamePatch = {};
   const str = (v: string) => v.trim() || null;
   if (f.name.trim() && f.name.trim() !== g.name) p.name = f.name.trim();
@@ -74,6 +75,7 @@ function diff(g: GameDetail, f: FormState): GamePatch {
   if (str(f.description) !== g.description) p.description = str(f.description);
   const stores = splitList(f.stores);
   if (stores.join("|") !== g.stores.join("|")) p.stores = stores;
+  if (tags.join("\n") !== g.tags.join("\n")) p.tags = tags;
   return p;
 }
 
@@ -90,12 +92,13 @@ function EditForm({ game, onClose }: { game: GameDetail; onClose: () => void }) 
   const genres = useGenres();
   const update = useUpdateGame(game.id);
   const [f, setF] = useState<FormState>(() => initial(game));
+  const [tags, setTags] = useState<string[]>(game.tags);
   const [error, setError] = useState<string | null>(null);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((prev) => ({ ...prev, [k]: v }));
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const patch = diff(game, f);
+    const patch = diff(game, f, tags);
     if (!Object.keys(patch).length) return onClose();
     setError(null);
     update.mutate(patch, { onSuccess: onClose, onError: (err) => setError(errorMessage(err)) });
@@ -163,14 +166,15 @@ function EditForm({ game, onClose }: { game: GameDetail; onClose: () => void }) 
         {text("release_date", "Lançamento", { type: "date" })}
       </div>
       {text("stores", "Lojas (separadas por vírgula)", { placeholder: "Steam, Epic" })}
+      <TagsField tags={tags} onChange={setTags} />
       {text("cover_url", "URL da capa", { type: "url", placeholder: "https://…" })}
       <label className="field">
         Descrição
         <textarea className="textarea" rows={4} value={f.description} onChange={(e) => set("description", e.target.value)} />
       </label>
       <p className="muted" style={{ margin: 0, fontSize: 12 }}>
-        Campos de metadado (HLTB, Metacritic, capa, descrição, lançamento) editados aqui ficam travados: a integração
-        não os sobrescreve até você destravar.
+        Campos de metadado (HLTB, Metacritic, capa, descrição, lançamento, tags) editados aqui ficam travados: a
+        integração não os sobrescreve até você destravar.
       </p>
       {error && <p className="error-text">{error}</p>}
       <div className="row-end">
@@ -182,5 +186,56 @@ function EditForm({ game, onClose }: { game: GameDetail; onClose: () => void }) 
         </button>
       </div>
     </form>
+  );
+}
+
+/** Tags como chips: algumas do IGDB têm vírgula no nome ("4X (explore, expand…)"), então não dá para separar
+ * por vírgula como as lojas. */
+function TagsField({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const t = draft.trim();
+    if (t && !tags.some((x) => fold(x) === fold(t))) onChange([...tags, t]);
+    setDraft("");
+  };
+  return (
+    <div className="field">
+      <span id="edit-tags-label">Tags</span>
+      {tags.length > 0 && (
+        <div className="row" style={{ gap: 6 }}>
+          {tags.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className="chip"
+              style={{ gap: 6, border: 0, cursor: "pointer" }}
+              aria-label={`Tirar a tag ${t}`}
+              onClick={() => onChange(tags.filter((x) => x !== t))}
+            >
+              {t} <Icon name="close" size={11} />
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="row">
+        <input
+          className="input"
+          style={{ flex: "1 1 200px", width: "auto" }}
+          aria-labelledby="edit-tags-label"
+          placeholder="Nova tag (Enter para pôr)"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+        />
+        <button type="button" className="btn btn-sm" disabled={!draft.trim()} onClick={add}>
+          Adicionar
+        </button>
+      </div>
+    </div>
   );
 }

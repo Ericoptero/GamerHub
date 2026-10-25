@@ -4,8 +4,10 @@ Backlog de jogos self-hosted que substitui a planilha. Tem biblioteca com listas
 aparelho, página de cada jogo com review, anotações e mídia, e integrações que trazem os dados
 sozinhas:
 
-- **IGDB** é a fonte principal: capa, descrição, história, screenshots, trailer, gêneros e estúdio.
-- **RAWG** é o fallback de metadados e também traz a nota do Metacritic.
+- **IGDB** é a fonte principal: capa, descrição, história, screenshots, trailer, estúdio e tags
+  (gêneros, temas, modos de jogo e perspectiva).
+- **RAWG** é o fallback de metadados e também traz a nota do Metacritic e as tags da comunidade
+  (Metroidvania, Souls-like, Atmospheric…).
 - **HowLongToBeat**, por scraping, dá o tempo para zerar (main, main + extras, 100%).
 - **Metacritic**, pelo backend JSON do site, dá o metascore **da sua plataforma**, a nota dos usuários e trechos de críticas.
 
@@ -14,7 +16,7 @@ O app inteiro roda em um container: FastAPI + SQLite servindo o frontend React.
 ## Subir com Docker
 
 ```bash
-cp .env.example .env          # e preencha as chaves (opcional, veja abaixo)
+cp .env.example .env          # opcional: porta, fuso horário e login
 mkdir -p data && sudo chown -R 1000:1000 data
 docker compose up -d --build
 ```
@@ -28,8 +30,9 @@ Abra `http://<servidor>:8080`. Os dados ficam em `./data`:
 Use um disco local do servidor. Não aponte `./data` para um compartilhamento SMB/NFS, porque
 o SQLite precisa de locks locais.
 
-O app **não tem login**, então deixe-o acessível só pela rede local ou por VPN (Tailscale,
-WireGuard). Se for expor, ponha um proxy reverso com autenticação na frente.
+Por padrão o app **não tem login** (veja [Login e vários usuários](#login-e-vários-usuários-opcional)),
+então deixe-o acessível só pela rede local ou por VPN (Tailscale, WireGuard). Se for expor, ligue
+o login ou ponha um proxy reverso com autenticação na frente.
 
 ### Importar a planilha
 
@@ -53,16 +56,24 @@ nome da aba ("Lista de espera", "Finalizados"…) e simula antes de gravar. Os m
 
 ### Chaves das integrações
 
-| Integração | Precisa de chave? | Como obter |
+As chaves são cadastradas na tela **Configurações → Chaves de API**, que traz o passo a passo de
+onde conseguir cada uma e um botão para testar. Valem para o servidor inteiro, então com o login
+ligado só administradores veem essa parte. Trocar uma chave vale na hora, sem reiniciar.
+
+| Integração | Precisa de chave? | Onde obter |
 |---|---|---|
-| IGDB | sim (grátis) | Crie um app em <https://dev.twitch.tv/console/apps> (OAuth Redirect `http://localhost`, categoria "Application Integration") e copie **Client ID** e **Client Secret** para `IGDB_CLIENT_ID`/`IGDB_CLIENT_SECRET` |
-| RAWG | sim (grátis) | <https://rawg.io/apidocs> → `RAWG_API_KEY` |
+| IGDB | sim (grátis) | app na Twitch: <https://dev.twitch.tv/console/apps> (Client ID e Client Secret) |
+| RAWG | sim (grátis) | <https://rawg.io/apidocs> |
 | HowLongToBeat | não | — |
-| Metacritic | não (hoje) | `METACRITIC_API_KEY` só se o site passar a exigir |
-| Steam (contas) | sim (grátis) | <https://steamcommunity.com/dev/apikey> (precisa de conta Steam com alguma compra) → `STEAM_API_KEY` |
+| Metacritic | não (hoje) | o campo só existe para o caso de o site passar a exigir |
+| Steam (contas) | sim (grátis) | <https://steamcommunity.com/dev/apikey> (conta Steam com alguma compra) |
 | Epic e GOG (contas) | não | login feito pela tela, veja abaixo |
 
-Depois de editar o `.env`, rode `docker compose up -d` para recriar o container.
+As chaves ficam no banco (e, portanto, no `backup.sqlite` e nos backups diários; não entram no
+`export.json`). Quem já tinha `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET`, `RAWG_API_KEY`,
+`METACRITIC_API_KEY` ou `STEAM_API_KEY` no `.env` não perde nada: no início, cada chave do `.env`
+que o banco ainda não tem é copiada para ele uma vez. Depois disso pode tirar as linhas do `.env`.
+Uma chave apagada pela tela não volta do `.env`.
 
 ### Contas Steam, Epic e GOG
 
@@ -127,6 +138,18 @@ O enriquecimento respeita estas regras:
   e não são sobrescritos. O cadeado pode ser aberto na página do jogo.
 - Resultado vazio de uma integração não apaga o que já existe.
 
+### Tags
+
+Cada jogo junta as tags do IGDB (gêneros, temas, modos de jogo como "Co-operative" e perspectiva
+como "First person") com até 12 tags da comunidade da RAWG, sem o ruído de loja (conquistas,
+nuvem, suporte a controle). A mesma tag com grafias diferentes entra uma vez só ("Single player" e
+"Singleplayer"). Elas ficam em inglês, como vêm das fontes.
+
+As tags aparecem em **Informações**, na página do jogo; clicar numa abre a biblioteca filtrada por
+ela, e o filtro também fica em **Filtros → Sobre o jogo**. Em **Editar** dá para tirar e pôr tags; a
+partir daí a integração não mexe mais nelas até você destravar. Para trazer as tags novas para uma
+biblioteca já enriquecida, rode **Buscar dados → Todos** marcando "Ignorar o cache".
+
 ### Backup e exportação
 
 Em **Integrações → Exportar** estão:
@@ -156,7 +179,19 @@ AUTH_ALLOW_SIGNUP=true   # false fecha o cadastro; aí só um administrador cria
 - **Sessão:** o cookie dura `AUTH_SESSION_DAYS` (30 dias) e renova com o uso. Se servir por HTTPS,
   ligue `AUTH_COOKIE_SECURE=true`.
 - **`backup.sqlite`:** com o login ligado, só administradores baixam. Ele contém os dados de todos,
-  os hashes de senha e os tokens das lojas.
+  os hashes de senha, os tokens das lojas e as chaves de API.
+
+### Página pública
+
+Cada usuário tem uma página só de leitura em `http://<servidor>/<usuario>` (ex.: `/bruno`), aberta
+para qualquer um, mesmo com o login ligado. Ela mostra os cards dos jogos (capa, status,
+plataforma, nota, Metacritic, horas e tags) com abas por lista, busca e filtro por tag. Jogos
+ocultos nunca aparecem, e comentários, contas de loja e aparelhos ficam de fora.
+
+Em **Configurações** cada um troca o nome de usuário (que é o endereço da página), o nome de
+exibição e liga ou desliga a página. Ela vem ligada; desligada, o endereço responde "página não
+encontrada". Nomes que já são caminhos do app (`biblioteca`, `jogos`, `api`…) não podem ser
+usados. Com o login desligado, o único usuário se chama `principal` até você trocar.
 
 ## Desenvolvimento
 

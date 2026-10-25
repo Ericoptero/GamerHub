@@ -10,6 +10,7 @@ from app.integrations.base import (
     MediaRef,
     MetadataPatch,
     NotFound,
+    ProviderError,
     ReviewRef,
     Scores,
     WrongLink,
@@ -41,6 +42,29 @@ def metacritic_slug(url: str | None) -> str | None:
     return first
 
 
+# Tags da comunidade que falam da loja ou do PC (conquistas, nuvem, controle, legendas…), não do jogo.
+_TAG_NOISE = re.compile(
+    r"steam|achievement|controller|cloud|trading card|workshop|leaderboard|caption|commentary|remote play|"
+    r"in-app|anti-cheat|family sharing|exclusive|sdk|hdr|timeline|includes|cross-platform|mouse only|"
+    r"^stats$|^online$|^console$",
+    re.I,
+)
+TAGS_MAX = 12
+
+
+def community_tags(raw: list[dict] | None) -> list[str]:
+    """Tags em inglês da RAWG (Metroidvania, Souls-like, Atmospheric…), sem o ruído de loja."""
+    out: list[str] = []
+    for t in raw or []:
+        name = (t.get("name") or "").strip()
+        if not name or t.get("language", "eng") != "eng" or _TAG_NOISE.search(name):
+            continue
+        out.append(name[:1].upper() + name[1:])
+        if len(out) == TAGS_MAX:
+            break
+    return out
+
+
 def _year(released: str | None) -> int | None:
     return int(released[:4]) if released and released[:4].isdigit() else None
 
@@ -55,6 +79,16 @@ class RAWGProvider:
     @property
     def enabled(self) -> bool:
         return bool(self.api_key)
+
+    async def check(self) -> str:
+        if not self.enabled:
+            raise ProviderError("Preencha a chave da RAWG.")
+        resp = await self._http.request("GET", "/games", params={"key": self.api_key, "page_size": 1})
+        if resp.status_code in (401, 403):
+            raise ProviderError("A RAWG recusou a chave. Confira se copiou ela inteira.")
+        if resp.status_code >= 400:
+            raise ProviderError(f"A RAWG respondeu HTTP {resp.status_code}.")
+        return "RAWG respondeu: chave funcionando."
 
     async def _get(self, path: str, **params) -> dict:
         data = await self._http.get_json(path, params={"key": self.api_key, **params})
@@ -149,7 +183,7 @@ class RAWGProvider:
                 for m in movies.get("results") or []
                 if (m.get("data") or {}).get("max") or (m.get("data") or {}).get("480")
             ][:2],
-            tags=[x["name"] for x in g.get("genres") or [] if x.get("name")],
+            tags=community_tags(g.get("tags")),
             genres=[x["name"] for x in g.get("genres") or [] if x.get("name")],
             developer=devs[0] if devs else None,
             publisher=pubs[0] if pubs else None,

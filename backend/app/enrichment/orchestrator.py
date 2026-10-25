@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from sqlalchemy import delete
 
 from app import db as dbmod
-from app.domain import PROVIDERS
+from app.domain import PROVIDERS, merge_tags
 from app.integrations.base import Candidate, MatchContext, MetadataPatch, Provider, ProviderError
 from app.integrations.cache import cached
 from app.integrations.matching import decide, display_score, query_variants, rank
@@ -192,6 +192,25 @@ def _first(*values):
     return None
 
 
+def _merge_tags(
+    g: Game, locked: set[str], results: dict[str, ProviderResult], igdb: MetadataPatch, rawg: MetadataPatch
+) -> None:
+    """Tags = IGDB (gêneros, temas, perspectiva, modos) + comunidade da RAWG; os gêneros da RAWG só
+    entram se o IGDB respondeu sem nada. Se uma das duas não rodou ou falhou, soma ao que o jogo já
+    tem em vez de trocar, para não apagar as tags dela."""
+    if "tags" in locked:
+        return
+    ran = {name: results[name].status for name in ("igdb", "rawg") if name in results}
+    if "ok" not in ran.values():
+        return
+    partial = any(ran.get(name, "error") == "error" for name in ("igdb", "rawg"))
+    tags = merge_tags(igdb.tags or (rawg.genres if ran.get("igdb", "error") != "error" else []), rawg.tags)
+    if partial:
+        tags = merge_tags(tags, g.tags)
+    if tags and tags != g.tags:
+        g.tags = tags
+
+
 def apply_results(game_id: int, results: dict[str, ProviderResult]) -> None:
     with dbmod.new_session() as db:
         g = db.get(Game, game_id)
@@ -231,7 +250,7 @@ def apply_results(game_id: int, results: dict[str, ProviderResult]) -> None:
         put("release_date", igdb.release_date, rawg.release_date)
         put("developer", igdb.developer, rawg.developer)
         put("publisher", igdb.publisher, rawg.publisher)
-        put("tags", igdb.tags, rawg.tags)
+        _merge_tags(g, locked, results, igdb, rawg)
 
         scores = mc.metacritic if mc.metacritic and mc.metacritic.metascore else rawg.metacritic
         if scores:
@@ -247,7 +266,8 @@ def apply_results(game_id: int, results: dict[str, ProviderResult]) -> None:
             put("hltb_extra_hours", times.extra)
             put("hltb_complete_hours", times.complete)
 
-        # Mídia de integração é substituída em bloco; a cadastrada à mão fica.
+        # Mídia de integração é substituída em bloco; a cadastrada à mão fica. A mesma URL reaproveita a
+        # linha (e o arquivo já baixado): apagar e inserir de novo no mesmo flush fere o UNIQUE da URL.
         for kind, sources in (
             ("screenshot", (("igdb", igdb.screenshots), ("rawg", rawg.screenshots))),
             ("video", (("igdb", igdb.videos), ("rawg", rawg.videos))),
@@ -256,20 +276,20 @@ def apply_results(game_id: int, results: dict[str, ProviderResult]) -> None:
             if not refs:
                 continue
             keep = [m for m in g.media if m.kind == kind and m.provider == "manual"]
-            g.media = [m for m in g.media if m.kind != kind] + keep
-            manual_urls = {m.url for m in keep}
-            for i, ref in enumerate(r for r in refs if r.url not in manual_urls):
-                g.media.append(
-                    Media(
-                        kind=kind,
-                        url=ref.url,
-                        thumb_url=ref.thumb_url,
-                        provider=provider,
-                        provider_ref=ref.ref,
-                        title=ref.title,
-                        position=len(keep) + i,
-                    )
-                )
+            old = {m.url: m for m in g.media if m.kind == kind and m.provider != "manual"}
+            seen = {m.url for m in keep}
+            fresh: list[Media] = []
+            for ref in refs:
+                if ref.url in seen:
+                    continue
+                seen.add(ref.url)
+                m = old.pop(ref.url, None) or Media(kind=kind, url=ref.url)
+                if m.thumb_url != ref.thumb_url:
+                    m.thumb_path = None
+                m.thumb_url, m.provider, m.provider_ref, m.title = ref.thumb_url, provider, ref.ref, ref.title
+                m.position = len(keep) + len(fresh)
+                fresh.append(m)
+            g.media = [m for m in g.media if m.kind != kind] + keep + fresh
 
         for name in ("metacritic", "rawg", "igdb"):
             r = results.get(name)

@@ -29,7 +29,7 @@ SEARCH_FIELDS = (
 DETAIL_FIELDS = (
     "name, alternative_names.name, summary, storyline, first_release_date, url, "
     "cover.image_id, artworks.image_id, screenshots.image_id, videos.video_id, videos.name, "
-    "genres.name, themes.name, aggregated_rating, aggregated_rating_count, "
+    "genres.name, themes.name, player_perspectives.name, game_modes.name, aggregated_rating, aggregated_rating_count, "
     "involved_companies.company.name, involved_companies.developer, involved_companies.publisher"
 )
 
@@ -64,6 +64,24 @@ class IGDBProvider:
     @property
     def enabled(self) -> bool:
         return bool(self.client_id and self.client_secret)
+
+    def set_credentials(self, client_id: str, client_secret: str) -> None:
+        if (client_id, client_secret) != (self.client_id, self.client_secret):
+            self.client_id, self.client_secret = client_id, client_secret
+            self._token, self._token_expires = None, 0.0
+
+    async def check(self) -> str:
+        """Testa as credenciais pedindo um token novo à Twitch e fazendo uma consulta mínima."""
+        if not self.enabled:
+            raise ProviderError("Preencha o Client ID e o Client Secret.")
+        try:
+            await self._get_token(refresh=True)
+        except ProviderError as e:
+            if "autenticação" not in str(e):
+                raise
+            raise ProviderError("A Twitch recusou o Client ID ou o Client Secret. Confira os dois.") from None
+        await self.query("games", "fields id; limit 1;")
+        return "IGDB respondeu: credenciais funcionando."
 
     async def _get_token(self, refresh: bool = False) -> str:
         async with self._token_lock:
@@ -210,7 +228,12 @@ class IGDBProvider:
                 MediaRef(url=f"https://www.youtube.com/watch?v={v['video_id']}", ref=v["video_id"], title=v.get("name"))
                 for v in videos[:3]
             ],
-            tags=[x["name"] for x in (g.get("genres") or []) + (g.get("themes") or []) if x.get("name")],
+            tags=[
+                x["name"]
+                for key in ("genres", "themes", "player_perspectives", "game_modes")
+                for x in g.get(key) or []
+                if x.get("name")
+            ],
             genres=[x["name"] for x in g.get("genres") or [] if x.get("name")],
             developer=dev,
             publisher=pub,

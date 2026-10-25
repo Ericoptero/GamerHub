@@ -217,6 +217,31 @@ export function InfoCard({
           </>
         )}
       </dl>
+      {/* Tags na largura toda do card: são muitas e a coluna do <dl> é estreita. */}
+      <div className={styles.tagsBlock}>
+        <span className={styles.tagsLabel}>
+          Tags
+          <LockedBadge game={game} field="tags" label="Tags" />
+        </span>
+        {game.tags.length ? (
+          <span className={styles.tagLinks}>
+            {game.tags.map((t) => (
+              <Link
+                key={t}
+                to={`/biblioteca?${new URLSearchParams({ lista: "todos", tag: t })}`}
+                className={styles.tagLink}
+                title={`Ver todos os jogos com a tag ${t}`}
+              >
+                {t}
+              </Link>
+            ))}
+          </span>
+        ) : (
+          <span className="muted" style={{ fontSize: 13 }}>
+            Nenhuma ainda. Vêm do IGDB e da RAWG, ou ponha em Editar.
+          </span>
+        )}
+      </div>
       <div className="row">
         <button type="button" className="btn btn-sm" onClick={onEdit}>
           <Icon name="edit" size={14} /> Editar

@@ -21,6 +21,7 @@ from app.schemas import (
     LinkOut,
     MediaOut,
     OwnershipOut,
+    PublicGameCard,
     StoreReviewOut,
 )
 from app.services.catalog import CatalogCache
@@ -111,6 +112,26 @@ def to_card(g: Game, owned: Ownership | None = None) -> GameCard:
         last_played_at=last_played,
         enriched=g.last_enriched_at is not None,
         hidden=g.hidden,
+    )
+
+
+def to_public_card(g: Game) -> PublicGameCard:
+    return PublicGameCard(
+        id=g.id,
+        name=g.name,
+        platform=g.platform.name,
+        genre=g.genre.name if g.genre else None,
+        status=g.status,  # type: ignore[arg-type]
+        user_score=g.user_score,
+        metacritic_score=g.metacritic_score,
+        hltb_main_hours=g.hltb_main_hours,
+        played_hours=g.played_hours,
+        times_completed=g.times_completed,
+        finished_at=g.finished_at,
+        finished_label=g.finished_label,
+        release_date=g.release_date,
+        cover=media_url(g.cover_path, g.cover_url),
+        tags=g.tags or [],
     )
 
 

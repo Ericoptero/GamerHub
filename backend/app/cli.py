@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.domain import DEFAULT_USER_ID
 from app.migrate import migrate
 from app.seed.seed_data import seed_catalogs
+from app.services import api_keys
 
 cli = typer.Typer(help="Ferramentas do GamerHub", no_args_is_help=True)
 
@@ -22,6 +23,7 @@ def _setup() -> None:
     migrate()
     with dbmod.new_session() as db:
         seed_catalogs(db)
+        api_keys.startup(db, settings)
 
 
 @cli.command("import-json")
@@ -105,7 +107,7 @@ def record_fixtures(
     game: str,
     out: Path = typer.Option(Path("tests/fixtures/recorded"), help="pasta de saída"),
 ):
-    """Grava respostas reais de IGDB e RAWG para um jogo (precisa das chaves no .env)."""
+    """Grava respostas reais de IGDB e RAWG para um jogo (precisa das chaves cadastradas)."""
     from app.integrations.registry import close_all, get_provider
 
     _setup()

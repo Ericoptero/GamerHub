@@ -6,4 +6,21 @@
  "rating": 4.4, "ratings_count": 3100,
  "alternative_names": [],
  "developers": [{"id": 1, "name": "Team Cherry"}], "publishers": [{"id": 1, "name": "Team Cherry"}],
- "genres": [{"id": 3, "name": "Adventure"}, {"id": 83, "name": "Platformer"}]}
+ "genres": [{"id": 3, "name": "Adventure"}, {"id": 83, "name": "Platformer"}],
+ "tags": [
+  {"id": 31, "name": "Singleplayer", "slug": "singleplayer", "language": "eng", "games_count": 220000},
+  {"id": 40847, "name": "Steam Achievements", "slug": "steam-achievements", "language": "eng", "games_count": 40000},
+  {"id": 13, "name": "Atmospheric", "slug": "atmospheric", "language": "eng", "games_count": 33000},
+  {"id": 40849, "name": "Steam Cloud", "slug": "steam-cloud", "language": "eng", "games_count": 18000},
+  {"id": 7, "name": "Full controller support", "slug": "full-controller-support", "language": "eng", "games_count": 17000},
+  {"id": 42, "name": "Great Soundtrack", "slug": "great-soundtrack", "language": "eng", "games_count": 3500},
+  {"id": 6, "name": "Exploration", "slug": "exploration", "language": "eng", "games_count": 20000},
+  {"id": 42392, "name": "Приключенческий экшен", "slug": "prikliuchencheskii-ekshen", "language": "rus", "games_count": 12000},
+  {"id": 40845, "name": "Partial Controller Support", "slug": "partial-controller-support", "language": "eng", "games_count": 11000},
+  {"id": 115, "name": "Difficult", "slug": "difficult", "language": "eng", "games_count": 9000},
+  {"id": 118, "name": "Metroidvania", "slug": "metroidvania", "language": "eng", "games_count": 1500},
+  {"id": 2, "name": "Side Scroller", "slug": "side-scroller", "language": "eng", "games_count": 9000},
+  {"id": 74, "name": "2D", "slug": "2d", "language": "eng", "games_count": 100000},
+  {"id": 40850, "name": "Steam Trading Cards", "slug": "steam-trading-cards", "language": "eng", "games_count": 7000},
+  {"id": 189, "name": "Souls-like", "slug": "souls-like", "language": "eng", "games_count": 900}
+ ]}

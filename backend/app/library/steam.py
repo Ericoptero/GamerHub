@@ -1,6 +1,6 @@
 """Steam Web API (https://steamcommunity.com/dev): perfil pela URL e jogos da conta.
 
-Precisa de STEAM_API_KEY. A lista de jogos só vem se o perfil deixar "Detalhes do jogo" públicos.
+Precisa da chave da Steam Web API (cadastrada em Configurações). A lista de jogos só vem se o perfil deixar "Detalhes do jogo" públicos.
 """
 
 import json
@@ -61,7 +61,20 @@ class SteamClient:
 
     def _require_key(self) -> None:
         if not self.enabled:
-            raise ProviderError("steam: STEAM_API_KEY não configurada no .env")
+            raise ProviderError("steam: cadastre a chave da Steam Web API em Configurações")
+
+    async def check(self) -> str:
+        """Testa a chave resolvendo um perfil conhecido (o do Gabe Newell)."""
+        if not self.enabled:
+            raise ProviderError("Preencha a chave da Steam Web API.")
+        resp = await self._http.request(
+            "GET", "/ISteamUser/ResolveVanityURL/v1/", params={"key": self.api_key, "vanityurl": "gabelogannewell"}
+        )
+        if resp.status_code in (401, 403):
+            raise ProviderError("A Steam recusou a chave. Confira se copiou ela inteira.")
+        if resp.status_code >= 400:
+            raise ProviderError(f"A Steam respondeu HTTP {resp.status_code}.")
+        return "Steam respondeu: chave funcionando."
 
     async def resolve(self, ref: str) -> str:
         try:

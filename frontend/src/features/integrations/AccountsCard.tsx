@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router";
 
 import { errorMessage } from "../../api/client";
 import { isJobActive, useAccountMutations, useAccounts, useJobs, useMeta, useSyncAccounts } from "../../api/queries";
@@ -95,7 +96,7 @@ export function AccountsCard() {
             className="btn"
             onClick={() => setAdding(s)}
             disabled={s === "steam" && !steamReady}
-            title={s === "steam" && !steamReady ? "Configure STEAM_API_KEY no .env" : undefined}
+            title={s === "steam" && !steamReady ? "Cadastre a chave da Steam em Configurações" : undefined}
           >
             <StoreMark store={s} /> Adicionar {STORE_LABEL[s]}
           </button>
@@ -103,11 +104,8 @@ export function AccountsCard() {
       </div>
       {!steamReady && meta.data && (
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-          Para contas Steam, crie uma chave grátis em{" "}
-          <a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener noreferrer">
-            steamcommunity.com/dev/apikey
-          </a>{" "}
-          e coloque em <code>STEAM_API_KEY</code> no <code>.env</code>.
+          Para contas Steam, cadastre uma chave grátis da Steam em{" "}
+          <Link to="/configuracoes#chaves">Configurações</Link> (lá tem o passo a passo).
         </p>
       )}
 

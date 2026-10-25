@@ -42,3 +42,13 @@ class ProviderCache(Base):
     status: Mapped[str] = mapped_column(String(10))  # ok | empty
     fetched_at: Mapped[datetime]
     expires_at: Mapped[datetime]
+
+
+class AppSetting(Base):
+    """Configuração do servidor (hoje, as chaves de API). Nunca sai inteira pela API nem pelo export."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(60), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.current_timestamp())

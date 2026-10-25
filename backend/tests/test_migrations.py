@@ -62,6 +62,8 @@ def test_upgrade_from_0001_keeps_children(empty_db):
         assert conn.execute(text("SELECT user_id FROM devices")).scalar_one() == 1
         assert conn.execute(text("SELECT user_id FROM jobs")).scalar_one() == 1
         assert conn.execute(text("SELECT username, password_hash FROM users")).one() == ("principal", None)
+        assert conn.execute(text("SELECT public_page FROM users")).scalar_one() == 1  # 0005: pública por padrão
+        assert _count(conn, "app_settings") == 0
         conn.execute(text("UPDATE games SET status = 'owned'"))
         assert conn.execute(text("PRAGMA foreign_keys")).scalar_one() == 1
 

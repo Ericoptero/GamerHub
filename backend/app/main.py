@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
@@ -10,7 +11,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from app import db as dbmod
-from app.api import accounts, auth, catalog, games, integrations, io, users
+from app.api import accounts, auth, catalog, games, integrations, io, public, users
+from app.api import settings as settings_api
+from app.api.public import media_is_public
 from app.auth.sessions import COOKIE, resolve_token
 from app.config import get_settings
 from app.enrichment.jobs import worker
@@ -20,6 +23,7 @@ from app.library.registry import close_store_clients
 from app.library.scheduler import daily_library_sync_loop
 from app.migrate import migrate
 from app.seed.seed_data import seed_catalogs
+from app.services import api_keys
 from app.services.backup import daily_backup_loop
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -44,6 +48,7 @@ async def lifespan(_app: FastAPI):
     with dbmod.new_session() as db:
         if seed_catalogs(db):
             log.info("catálogos iniciais criados (gêneros, plataformas, aparelhos)")
+        api_keys.startup(db, settings)
     await asyncio.to_thread(purge_expired)
     background: list[asyncio.Task] = []
     if settings.worker_enabled:
@@ -62,13 +67,23 @@ async def lifespan(_app: FastAPI):
         await close_store_clients()
 
 
-PUBLIC_API = ("/api/auth/", "/api/health")
+PUBLIC_API = ("/api/auth/", "/api/health", "/api/public/")
+MEDIA_GAME = re.compile(r"^/media/(\d+)/")
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 APP_HEADER = "x-gamerhub"
 
 
+def _public_media(path: str) -> bool:
+    m = MEDIA_GAME.match(path)
+    if not m:
+        return False
+    with dbmod.new_session() as db:
+        return media_is_public(db, int(m.group(1)))
+
+
 def install_auth_guard(app: FastAPI) -> None:
-    """Com o login ligado: resolve a sessão do cookie e barra /api e /media sem login.
+    """Com o login ligado: resolve a sessão do cookie e barra /api e /media sem login (menos a página
+    pública e as imagens dos jogos que aparecem nela).
 
     Mutações exigem o cabeçalho X-GamerHub (o frontend sempre manda). Um formulário de outro
     site não consegue mandar cabeçalho próprio, então isso, junto do cookie SameSite=Lax, barra CSRF.
@@ -83,7 +98,7 @@ def install_auth_guard(app: FastAPI) -> None:
         token = request.cookies.get(COOKIE)
         request.state.user_id = await run_in_threadpool(resolve_token, token) if token else None
         protected = (is_api and not path.startswith(PUBLIC_API)) or path.startswith("/media/")
-        if protected and request.state.user_id is None:
+        if protected and request.state.user_id is None and not await run_in_threadpool(_public_media, path):
             return JSONResponse({"detail": "Faça login para continuar"}, status_code=401)
         return await call_next(request)
 
@@ -96,7 +111,7 @@ def create_app() -> FastAPI:
     app.add_middleware(GZipMiddleware, minimum_size=2048)
     if settings.auth_enabled:
         install_auth_guard(app)
-    routers = (auth, users, catalog, games, integrations, accounts, io)
+    routers = (auth, users, settings_api, public, catalog, games, integrations, accounts, io)
     for router in (m.router for m in routers):
         app.include_router(router)
     app.mount("/media", CachedStaticFiles(directory=settings.media_dir, check_dir=False), name="media")

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.auth import username_taken
+from app.api.auth import check_username
 from app.auth import sessions
 from app.auth.deps import require_admin
 from app.auth.passwords import hash_password
@@ -50,8 +50,7 @@ def list_users(db: Session = Depends(get_db), _a: User = Depends(_admin)):
 @router.post("", response_model=UserAdminOut, status_code=201)
 def create_user(data: UserCreate, db: Session = Depends(get_db), _a: User = Depends(_admin)):
     username = data.username.strip()
-    if username_taken(db, username):
-        raise HTTPException(409, "Esse nome de usuário já existe")
+    check_username(db, username)
     user = User(
         username=username,
         display_name=(data.display_name or "").strip() or username,

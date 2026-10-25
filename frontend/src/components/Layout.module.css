@@ -74,6 +74,10 @@
   color: #fff;
 }
 
+.navIcon {
+  display: none;
+}
+
 .add {
   text-decoration: none;
 }
@@ -163,6 +167,19 @@
     margin-right: 0;
     overflow-x: auto;
     flex-wrap: nowrap;
+  }
+
+  .navItem {
+    padding: 0 10px;
+    white-space: nowrap;
+  }
+
+  .navIcon {
+    display: block;
+  }
+
+  .navText {
+    display: none;
   }
 
   .brand {

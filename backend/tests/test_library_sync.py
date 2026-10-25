@@ -303,7 +303,7 @@ def test_accounts_api(data_dir, fake):
 
         fake.steam.enabled = False
         r = c.post("/api/accounts", json={"store": "steam", "nickname": "X", "ref": "outro"})
-        assert r.status_code == 409 and "STEAM_API_KEY" in r.json()["detail"]
+        assert r.status_code == 409 and "Configurações" in r.json()["detail"]
 
         assert c.delete(f"/api/accounts/{acc['id']}").status_code == 204
         assert c.get("/api/accounts").json() == []

@@ -29,6 +29,16 @@ export const STATUS_DOT: Record<Status, string> = {
   owned: "#7FD1C7",
 };
 
+/** O que cada lista quer dizer, para o seletor de lista da página do jogo. */
+export const STATUS_HINT: Record<Status, string> = {
+  backlog: "Quero jogar: o jogo entra na fila, com prioridade.",
+  playing: "Estou jogando agora.",
+  done: "Terminei: zerei ou cheguei aonde queria.",
+  dropped: "Parei no meio e não pretendo voltar tão cedo.",
+  hype: "Ainda não saiu ou estou de olho para comprar.",
+  owned: "Tenho o jogo, mas ainda sem planos de jogar. É onde caem os jogos das contas de loja.",
+};
+
 export const PRIO: Record<Priority, number> = { Alta: 0, Media: 1, Baixa: 2 };
 
 export const PRIORITY_LABEL: Record<Priority, string> = { Alta: "Alta", Media: "Média", Baixa: "Baixa" };
