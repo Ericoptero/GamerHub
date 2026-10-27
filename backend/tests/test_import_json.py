@@ -7,33 +7,33 @@ from app.models import Device, Game, Platform, Store
 from app.services.importer import import_short_json
 
 
-def test_import_planilha_counts(db, planilha):
-    report = import_short_json(db, 1, planilha)
-    assert report.created == 240
+def test_import_counts(db, biblioteca):
+    report = import_short_json(db, 1, biblioteca)
+    assert report.created == 16
     assert report.new_genres == []
 
     games = db.scalars(select(Game)).all()
-    assert Counter(g.status for g in games) == {"backlog": 157, "done": 79, "dropped": 2, "hype": 2}
+    assert Counter(g.status for g in games) == {"backlog": 7, "done": 6, "dropped": 1, "hype": 2}
     assert db.scalar(select(func.count(Platform.id))) == 20
     assert db.scalar(select(func.count(Device.id))) == 7
 
-    assert round(sum(g.hltb_main_hours or 0 for g in games if g.status == "backlog")) == 1875
-    assert round(sum(g.played_hours or 0 for g in games if g.status == "done")) == 1259
-    assert sum(1 for g in games if g.status == "backlog" and g.priority == "Alta") == 26
+    assert round(sum(g.hltb_main_hours or 0 for g in games if g.status == "backlog")) == 145
+    assert round(sum(g.played_hours or 0 for g in games if g.status == "done")) == 137
+    assert sum(1 for g in games if g.status == "backlog" and g.priority == "Alta") == 3
     scores = [g.user_score for g in games if g.status == "done" and g.user_score is not None]
-    assert len(scores) == 71
-    assert round(sum(scores) / len(scores), 1) == 7.8
+    assert len(scores) == 5
+    assert round(sum(scores) / len(scores), 1) == 9.2
     assert all(isinstance(s, int) for s in scores)
 
 
-def test_import_dates_and_unknown_hours(db, planilha):
-    import_short_json(db, 1, planilha)
+def test_import_dates_and_unknown_hours(db, biblioteca):
+    import_short_json(db, 1, biblioteca)
     games = db.scalars(select(Game)).all()
     labelled = [g for g in games if g.finished_label == "Antes de 2022"]
-    assert len(labelled) == 46
+    assert len(labelled) == 3
     assert all(g.finished_at is None for g in labelled)
-    # t = 0 na planilha significa "não sei": vira NULL (45 dos 46 "Antes de 2022" têm t = 0)
-    assert sum(1 for g in labelled if g.played_hours is None) == 45
+    # t = 0 na planilha significa "não sei": vira NULL (2 dos 3 "Antes de 2022" têm t = 0)
+    assert sum(1 for g in labelled if g.played_hours is None) == 2
     assert not any(g.played_hours == 0 for g in games)
 
     hype = [g for g in games if g.status == "hype"]
@@ -43,25 +43,25 @@ def test_import_dates_and_unknown_hours(db, planilha):
     assert totk.release_date == date(2023, 5, 12)
 
 
-def test_import_stores_normalized(db, planilha):
-    import_short_json(db, 1, planilha)
+def test_import_stores_normalized(db, biblioteca):
+    import_short_json(db, 1, biblioteca)
     names = sorted(s.name for s in db.scalars(select(Store)))
     assert names.count("Steam") == 1 and names.count("Epic") == 1
     both = [g for g in db.scalars(select(Game)) if {s.name for s in g.stores} == {"Steam", "Epic"}]
-    assert len(both) == 6
+    assert len(both) == 2
 
 
-def test_duplicates_kept_and_reimport_is_noop(db, planilha):
-    import_short_json(db, 1, planilha)
+def test_duplicates_kept_and_reimport_is_noop(db, biblioteca):
+    import_short_json(db, 1, biblioteca)
     hades = db.scalars(select(Game).where(Game.name == "Hades")).all()
     assert sorted(g.status for g in hades) == ["backlog", "done"]
 
-    again = import_short_json(db, 1, planilha, mode="novos")
-    assert again.created == 0 and again.skipped == 240
+    again = import_short_json(db, 1, biblioteca, mode="novos")
+    assert again.created == 0 and again.skipped == 16
 
 
-def test_update_mode_moves_status(db, planilha):
-    import_short_json(db, 1, planilha)
+def test_update_mode_moves_status(db, biblioteca):
+    import_short_json(db, 1, biblioteca)
     game = db.scalars(select(Game).where(Game.name == "Alien: Isolation")).one()
     assert game.status == "backlog"
     report = import_short_json(

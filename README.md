@@ -1,63 +1,193 @@
 # GamerHub
 
-Backlog de jogos self-hosted que substitui a planilha. Tem biblioteca com listas, filtros por
-aparelho, página de cada jogo com review, anotações e mídia, e integrações que trazem os dados
-sozinhas:
+Backlog de jogos self-hosted. Junta numa página só a lista do que você quer jogar, o que está
+jogando e o que já terminou, com as bibliotecas da Steam, Epic e GOG e os dados de cada jogo
+(capa, descrição, tempo para zerar, Metacritic), que chegam sozinhos.
+
+Roda num container Docker no seu servidor, NAS ou homelab. Os dados ficam com você.
+
+![Biblioteca com a lista de espera, filtros por aparelho e cards com capa, tempo e Metacritic](docs/screenshots/biblioteca.png)
+
+> Os prints são de uma instância real. Os apelidos das contas e os nomes de perfil foram trocados
+> por nomes genéricos.
+
+## Sumário
+
+- [Objetivo](#objetivo)
+- [O que ele faz](#o-que-ele-faz)
+- [Instalação](#instalação)
+- [Como usar](#como-usar)
+- [Desenvolvimento](#desenvolvimento)
+- [Como o projeto foi criado](#como-o-projeto-foi-criado)
+- [Uso de IA (AI disclosure)](#uso-de-ia-ai-disclosure)
+- [Uso pessoal e avisos](#uso-pessoal-e-avisos)
+- [Licença](#licença)
+
+## Objetivo
+
+O GamerHub nasceu para substituir uma planilha de backlog: abas de "Lista de espera",
+"Finalizados" e "Dropados", tempo do HowLongToBeat digitado à mão, nota do Metacritic copiada do
+site e uma coluna de lojas. A planilha funcionava, mas tinha problemas:
+
+- **Jogos espalhados:** eles ficavam em várias contas (Steam, Epic, GOG) e em vários aparelhos
+  (PC, Steam Deck, Switch, portáteis de emulação), e a planilha não sabia o que já estava em
+  cada lugar.
+- **Dados à mão:** cada jogo novo pedia que alguém fosse buscar capa, tempo e nota.
+- **Respostas difíceis:** era trabalhoso saber, por exemplo, "o que dá para jogar no portátil em
+  menos de 10 horas e é bem avaliado".
+
+O objetivo é ter um lugar só, rápido de consultar, que:
+
+1. importe sozinho as bibliotecas das lojas e junte o mesmo jogo de várias contas;
+2. busque os metadados (IGDB, RAWG, HowLongToBeat, Metacritic) sem digitação;
+3. deixe filtrar e ordenar por aparelho, tempo, nota, tag e lista;
+4. guarde suas notas, reviews e anotações de progresso;
+5. rode em casa, num container, sem depender de serviço de terceiros para guardar os dados.
+
+## O que ele faz
+
+### Biblioteca e filtros
+
+Listas (Lista de espera, Jogando, Finalizados, Dropados, Hype, Biblioteca, Ocultos), filtro por
+aparelho na lateral e um painel de filtros com plataforma, loja, conta, gênero, tags, faixas de
+Metacritic, tempo do HLTB, horas jogadas e atalhos como "Curtos e bem avaliados". A biblioteca
+tem 15 ordenações, entre elas "nota por hora" (Metacritic ÷ HLTB).
+
+![Painel de filtros aberto na lista Biblioteca](docs/screenshots/filtros.png)
+
+### Página do jogo
+
+Descrição, trailer e screenshots, Metacritic (crítica e usuários), tempos do HowLongToBeat,
+horas jogadas por conta, onde dá para jogar, tags, sua nota e review, comentários de progresso e
+o resumo da história. Mudar de lista e de prioridade leva um clique.
+
+![Página de um jogo com descrição, notas, tempos e contas](docs/screenshots/jogo.png)
+
+### Contas das lojas
+
+Várias contas Steam, Epic e GOG, cada uma com um apelido. Os jogos entram na lista
+**Biblioteca**, o mesmo jogo em contas diferentes vira um só, e uma checagem diária traz os jogos
+novos com os metadados.
+
+![Contas das lojas conectadas, com sincronização diária](docs/screenshots/integracoes.png)
+
+### Metadados automáticos e "Precisa da sua ajuda"
 
 - **IGDB** é a fonte principal: capa, descrição, história, screenshots, trailer, estúdio e tags
   (gêneros, temas, modos de jogo e perspectiva).
 - **RAWG** é o fallback de metadados e também traz a nota do Metacritic e as tags da comunidade
   (Metroidvania, Souls-like, Atmospheric…).
 - **HowLongToBeat**, por scraping, dá o tempo para zerar (main, main + extras, 100%).
-- **Metacritic**, pelo backend JSON do site, dá o metascore **da sua plataforma**, a nota dos usuários e trechos de críticas.
+- **Metacritic**, pelo backend JSON do site, dá o metascore **da sua plataforma**, a nota dos
+  usuários e trechos de críticas.
 
-O app inteiro roda em um container: FastAPI + SQLite servindo o frontend React.
+Quando uma integração fica em dúvida, o jogo vai para **Precisa da sua ajuda**, onde você escolhe
+o resultado certo, procura por outro nome ou cola o link da página do jogo.
 
-## Subir com Docker
+![Enriquecimento em lote concluído e a fila "Precisa da sua ajuda"](docs/screenshots/enriquecer.png)
+
+### Página pública e celular
+
+Cada usuário tem uma página só de leitura em `/<usuario>` para mostrar a lista de jogos. O app
+inteiro funciona no celular.
+
+| Página pública | No celular |
+|---|---|
+| ![Página pública com os jogos finalizados](docs/screenshots/publica.png) | ![Biblioteca no celular](docs/screenshots/celular.png) |
+
+## Instalação
+
+O app inteiro roda em **um container**: FastAPI + SQLite servindo o frontend React já compilado.
+
+### Requisitos
+
+- Um servidor, NAS ou PC x86_64 com **Docker** e **Docker Compose**.
+- Um disco local para a pasta `data/`. Não use compartilhamento SMB/NFS: o SQLite precisa de
+  locks locais.
+- Opcional: chaves grátis do IGDB, da RAWG e da Steam (veja [Chaves das integrações](#chaves-das-integrações)).
+  Sem elas o app funciona, mas sem capas, descrições e importação da Steam.
+
+### Passo a passo
 
 ```bash
+git clone <url-deste-repositório> gamerhub
+cd gamerhub
+
 cp .env.example .env          # opcional: porta, fuso horário e login
 mkdir -p data && sudo chown -R 1000:1000 data
 docker compose up -d --build
 ```
 
-Abra `http://<servidor>:8080`. Os dados ficam em `./data`:
+Abra `http://<servidor>:8080`. Na primeira subida as migrações do banco rodam sozinhas e os
+catálogos (gêneros, plataformas e aparelhos padrão) são criados.
+
+O `.env` é todo opcional. As opções mais usadas:
+
+| Variável | Padrão | Para quê |
+|---|---|---|
+| `GAMERHUB_PORT` | `8080` | Porta no host. |
+| `GAMERHUB_BIND_IP` | `0.0.0.0` | IP do host onde o app escuta (ex.: só o IP da rede local). |
+| `TZ` | `America/Sao_Paulo` | Fuso das datas, dos backups e da checagem diária. |
+| `LIBRARY_SYNC_HOUR` | `5` | Hora a partir da qual as contas das lojas são checadas. |
+| `AUTH_ENABLED` | `false` | Liga o login e vários usuários. |
+
+A lista completa, com comentários, está em [`.env.example`](.env.example).
+
+Os dados ficam em `./data`:
 
 - `gamerhub.db`: o banco.
 - `media/`: capas e screenshots em cache.
 - `backups/`: um backup automático por dia, mantendo os 7 últimos.
 
-Use um disco local do servidor. Não aponte `./data` para um compartilhamento SMB/NFS, porque
-o SQLite precisa de locks locais.
+### Primeiros passos
+
+1. **Configurações → Chaves de API:** cadastre as chaves do IGDB, da RAWG e da Steam. A tela
+   explica onde conseguir cada uma e tem um botão para testar.
+2. **Integrações → Contas das lojas:** conecte suas contas Steam, Epic e GOG. Também dá para
+   [importar uma planilha](#importar-uma-planilha).
+3. **Integrações → Enriquecer:** busque os metadados de todos os jogos. Os jogos que chegam pelas
+   contas já são enriquecidos sozinhos.
+
+![Chaves de API em Configurações, com o passo a passo do IGDB](docs/screenshots/configuracoes.png)
+
+### Segurança na rede
 
 Por padrão o app **não tem login** (veja [Login e vários usuários](#login-e-vários-usuários-opcional)),
 então deixe-o acessível só pela rede local ou por VPN (Tailscale, WireGuard). Se for expor, ligue
 o login ou ponha um proxy reverso com autenticação na frente.
 
-### Importar a planilha
+### Atualizar
 
-A planilha original já está convertida em `backend/app/seed/planilha.json` (240 jogos). Há
-duas formas de importar:
+```bash
+docker compose exec -T gamerhub python -m app.cli backup   # backup antes, por garantia
+git pull
+docker compose up -d --build
+```
 
-- **Pela interface:** em **Integrações → Importar → JSON**, envie o arquivo no modo "novos".
-- **Pelo terminal:**
+As migrações rodam no início do container. O `.env` e a pasta `data/` não são tocados.
 
-  ```bash
-  docker compose exec gamerhub python -m app.cli import-json app/seed/planilha.json
-  ```
+## Como usar
 
-Para reimportar a planilha depois (.xlsx ou .csv), use o assistente em **Integrações →
-Importar planilha**. Ele mostra uma prévia, sugere o mapeamento das colunas, deduz o status pelo
-nome da aba ("Lista de espera", "Finalizados"…) e simula antes de gravar. Os modos são:
+### Importar uma planilha
+
+Em **Integrações → Importar planilha** você envia um `.xlsx` ou `.csv`. O assistente mostra uma
+prévia, sugere o mapeamento das colunas, deduz o status pelo nome da aba ("Lista de espera",
+"Finalizados"…) e simula antes de gravar. Os modos são:
 
 - **novos:** ignora o que já existe.
 - **atualizar:** sobrescreve os campos que vierem na planilha e acompanha mudança de status.
 - **substituir:** apaga tudo e importa de novo, fazendo um backup antes.
 
+Um `export.json` de outro GamerHub entra por **Integrações → Importar → JSON** ou pelo terminal:
+
+```bash
+docker compose exec gamerhub python -m app.cli import-json /data/imports/export.json
+```
+
 ### Chaves das integrações
 
-As chaves são cadastradas na tela **Configurações → Chaves de API**, que traz o passo a passo de
-onde conseguir cada uma e um botão para testar. Valem para o servidor inteiro, então com o login
+As chaves são cadastradas em **Configurações → Chaves de API**, que traz o passo a passo de onde
+conseguir cada uma e um botão para testar. Valem para o servidor inteiro, então com o login
 ligado só administradores veem essa parte. Trocar uma chave vale na hora, sem reiniciar.
 
 | Integração | Precisa de chave? | Onde obter |
@@ -80,8 +210,8 @@ Uma chave apagada pela tela não volta do `.env`.
 Em **Integrações → Contas das lojas** você conecta quantas contas quiser, cada uma com um apelido.
 O apelido aparece no card e na página de cada jogo.
 
-- **Steam:** cole a URL do perfil, nos formatos `https://steamcommunity.com/id/JogadorExemplo/` ou
-  `https://steamcommunity.com/profiles/76561198000000001/`. Para a lista vir, o perfil precisa
+- **Steam:** cole a URL do perfil, nos formatos `https://steamcommunity.com/id/<seu-nome>/` ou
+  `https://steamcommunity.com/profiles/<id-de-17-dígitos>/`. Para a lista vir, o perfil precisa
   deixar **"Detalhes do jogo"** como público (Steam → Perfil → Privacidade).
 - **Epic:** clique em **Abrir login da Epic**. Com a conta logada, a página mostra um texto com
   `authorizationCode`; cole o texto inteiro (ou só o código). Ele vale poucos minutos.
@@ -116,16 +246,16 @@ Em **Integrações → Enriquecer**, escolha o escopo:
 - **desatualizados:** jogos com dados de mais de 30 dias.
 - **todos.**
 
-A primeira passada nos 240 jogos leva de 10 a 15 minutos. O Metacritic é consultado devagar de
-propósito, e as passadas seguintes usam cache. O progresso aparece na tela, e se o container
-reiniciar no meio, o job continua de onde parou.
+Cada jogo leva alguns segundos, porque o Metacritic é consultado devagar de propósito (algumas
+centenas de jogos levam de 10 a 15 minutos), e as passadas seguintes usam cache. O progresso
+aparece na tela, e se o container reiniciar no meio, o job continua de onde parou.
 
 Cada jogo é casado com o item de cada integração por nome, plataforma e ano. Quando uma integração
 fica em dúvida (dois "Tomb Raider", por exemplo), não acha nada ou dá erro, o jogo aparece em
 **Precisa da sua ajuda**, num card só com todas as integrações dele. Ali você:
 
 - escolhe o resultado certo;
-- procura por outro nome em cada integração (ex.: o título em inglês);
+- procura por outro nome em cada integração (ex.: o título em inglês) ou cola o link da página do jogo;
 - corrige nome, plataforma ou lançamento e busca de novo ("Mais campos…" abre o editor completo);
 - ou ignora aquela integração para o jogo.
 
@@ -183,10 +313,10 @@ AUTH_ALLOW_SIGNUP=true   # false fecha o cadastro; aí só um administrador cria
 
 ### Página pública
 
-Cada usuário tem uma página só de leitura em `http://<servidor>/<usuario>` (ex.: `/bruno`), aberta
-para qualquer um, mesmo com o login ligado. Ela mostra os cards dos jogos (capa, status,
-plataforma, nota, Metacritic, horas e tags) com abas por lista, busca e filtro por tag. Jogos
-ocultos nunca aparecem, e comentários, contas de loja e aparelhos ficam de fora.
+Cada usuário tem uma página só de leitura em `http://<servidor>/<usuario>`, aberta para qualquer
+um, mesmo com o login ligado. Ela mostra os cards dos jogos (capa, status, plataforma, nota,
+Metacritic, horas e tags) com abas por lista, busca e filtro por tag. Jogos ocultos nunca
+aparecem, e comentários, contas de loja e aparelhos ficam de fora.
 
 Em **Configurações** cada um troca o nome de usuário (que é o endereço da página), o nome de
 exibição e liga ou desliga a página. Ela vem ligada; desligada, o endereço responde "página não
@@ -220,6 +350,9 @@ uv run alembic revision --autogenerate -m "..."   # nova migração depois de mu
 
 No frontend: `npm test` (vitest), `npm run typecheck` e `npm run build`.
 
+Os testes usam uma biblioteca fictícia de 16 jogos em `backend/tests/fixtures/biblioteca.json` e
+respostas gravadas das integrações em `backend/tests/fixtures/`.
+
 ### Quando uma integração quebrar
 
 HLTB e Metacritic não têm API oficial e mudam de tempos em tempos. Quando acontecer:
@@ -231,7 +364,7 @@ HLTB e Metacritic não têm API oficial e mudam de tempos em tempos. Quando acon
 
 Enquanto isso o app continua funcionando, e dá para editar HLTB e Metacritic à mão.
 
-## Estrutura
+### Estrutura
 
 ```
 backend/app/
@@ -242,4 +375,86 @@ backend/app/
   enrichment/     orquestrador (merge) e fila de jobs asyncio persistida
 frontend/src/     React + TanStack Query; features/ espelha as telas do protótipo
 docs/prototype/   protótipo de design original (especificação visual)
+docs/screenshots/ prints usados neste README
 ```
+
+## Como o projeto foi criado
+
+O GamerHub foi feito em outubro de 2026, em dois dias, como projeto pessoal para aposentar a
+planilha de backlog.
+
+1. **Protótipo visual.** Antes do código veio o design: um protótipo navegável ("Portal de
+   Backlog"), feito com ajuda de IA, com as telas de biblioteca, detalhe do jogo, adicionar
+   jogo, aparelhos e integrações. Ele está em [`docs/prototype/Main.dc.html`](docs/prototype/Main.dc.html)
+   e serve de especificação visual: cores, tipografia (Barlow Condensed + Inter) e layout saem dali.
+2. **Decisões de produto.** O autor definiu o escopo e as escolhas principais: um container só,
+   para rodar em casa; SQLite em vez de um banco separado; login opcional e desligado por padrão;
+   IGDB como fonte principal e RAWG como reserva; HLTB e Metacritic por scraping dentro do backend;
+   várias contas por loja, com o mesmo jogo virando um só.
+3. **Primeira versão.** Biblioteca, detalhe, adicionar jogo, aparelhos, integrações com matching e
+   fila de enriquecimento persistida, importação da planilha, exportação e backup diário.
+4. **Iterações.** A cada rodada o app era usado de verdade num homelab, e o que incomodava virava a
+   próxima tarefa: multiusuário opcional; contas Steam, Epic e GOG com checagem diária e mesclagem;
+   filtros ricos e 15 ordenações; "Precisa da sua ajuda" por jogo; jogos ocultos; busca pelo link
+   da página do jogo; chaves de API na tela de Configurações; página pública e tags.
+
+A pilha escolhida:
+
+| Parte | Tecnologia |
+|---|---|
+| Backend | Python 3.13, FastAPI, SQLAlchemy 2, Alembic, httpx, rapidfuzz, uv |
+| Banco | SQLite em modo WAL, com backup diário pela API de backup do SQLite |
+| Fila | asyncio dentro do próprio processo, com os jobs salvos no banco (retoma após restart) |
+| Frontend | React 19, TypeScript, Vite, React Router, TanStack Query |
+| Entrega | Dockerfile multi-stage (Node compila o frontend, Python serve tudo) e Docker Compose |
+
+## Uso de IA (AI disclosure)
+
+Este projeto foi construído com ajuda intensa de inteligência artificial, e é importante deixar
+isso claro.
+
+- **Quem escreveu o código.** A maior parte do código, dos testes, das migrações e desta
+  documentação foi gerada por IA, com um agente de programação. O protótipo visual também foi
+  feito com IA.
+- **O que foi humano.** A ideia, os requisitos, as decisões de produto e de arquitetura, a revisão
+  das mudanças, os testes de uso no dia a dia, o deploy e a escolha do que entrava em cada versão.
+- **Como foi verificado.** Cada mudança passou pela suíte automatizada (pytest no backend, vitest
+  e checagem de tipos no frontend) e por uso real numa instância em casa, com uma biblioteca de
+  mais de mil jogos. Isso reduz, mas não elimina, a chance de erro.
+- **O que isso significa para você.** Código gerado por IA pode ter bugs, casos não previstos ou
+  falhas de segurança que passaram despercebidos. Leia o código antes de confiar nele para algo
+  importante, e mantenha os backups ligados.
+- **O app não usa IA.** Em execução, o GamerHub não chama nenhum serviço de IA e não envia seus
+  dados para modelos de linguagem. Ele só conversa com as integrações listadas acima (IGDB, RAWG,
+  HowLongToBeat, Metacritic, Steam, Epic e GOG).
+
+## Uso pessoal e avisos
+
+O GamerHub é um projeto **pessoal e sem fins lucrativos**, feito para uso próprio num servidor
+doméstico e compartilhado como está.
+
+- **Sem garantia nem suporte.** Não há compromisso com novas versões, correções ou suporte.
+  Use por sua conta e risco (veja a [licença](#licença)).
+- **Sem vínculo com as marcas.** O projeto não tem relação com Valve/Steam, Epic Games, GOG,
+  CD PROJEKT, Twitch/IGDB, RAWG, HowLongToBeat, Metacritic ou Fandom. Nomes, logos, capas e
+  descrições pertencem aos donos.
+- **Termos de uso dos serviços.** HowLongToBeat e Metacritic não têm API pública: os dados vêm
+  das páginas e dos endpoints internos dos sites, em volume baixo e com limite de requisições.
+  O login da Epic e da GOG usa os mesmos fluxos públicos de clientes como Legendary e Heroic, que
+  não são oficiais. Esses caminhos podem parar de funcionar a qualquer momento, e cabe a quem
+  instala respeitar os termos de cada serviço. As chaves do IGDB, da RAWG e da Steam são pessoais
+  e seguem os termos de cada API (o plano grátis da RAWG, por exemplo, é para uso pessoal).
+- **Conteúdo de terceiros.** Capas, screenshots, descrições e críticas são guardadas em cache só
+  para exibição na sua instância. Pense nisso antes de abrir a página pública para a internet.
+- **Seus dados.** Tudo fica no seu servidor, em `data/`. O banco guarda as chaves de API e os
+  tokens das lojas, então trate os backups (`backup.sqlite` e `data/backups/`) como dados
+  sensíveis.
+
+## Licença
+
+Distribuído sob a [licença MIT](LICENSE). Em resumo: pode usar, copiar, modificar e distribuir,
+inclusive comercialmente, desde que mantenha o aviso de copyright e a licença. O software é
+fornecido "como está", sem garantias.
+
+A licença cobre o código deste repositório. Marcas, imagens e dados que vêm das integrações
+seguem os termos dos respectivos donos.

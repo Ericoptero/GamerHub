@@ -9,8 +9,9 @@ from app.migrate import migrate
 from app.seed.seed_data import seed_catalogs
 from app.services import api_keys
 
-PLANILHA = Path(__file__).resolve().parent.parent / "app" / "seed" / "planilha.json"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
+# Biblioteca fictícia no formato curto do importador (o mesmo do JSON do protótipo).
+BIBLIOTECA = FIXTURES / "biblioteca.json"
 
 
 @pytest.fixture
@@ -38,5 +39,5 @@ def db(data_dir):
 
 
 @pytest.fixture(scope="session")
-def planilha() -> list[dict]:
-    return json.loads(PLANILHA.read_text(encoding="utf-8"))
+def biblioteca() -> list[dict]:
+    return json.loads(BIBLIOTECA.read_text(encoding="utf-8"))

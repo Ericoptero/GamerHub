@@ -1,0 +1,18 @@
+[
+  {"n": "Eastward", "p": "PC", "g": "Ação e aventura (Metroidvania, open world)", "st": "done", "d": "2026-01-17", "t": 17.6, "u": 8, "o": "Steam", "c": "Eastward é um jogo bonito, com trilha e pixel art caprichadas."},
+  {"n": "Hades", "p": "PC", "g": "RPG de ação", "st": "done", "d": "2025-12-31", "t": 75.0, "u": 9},
+  {"n": "Hades", "p": "PC", "g": "Ação (beat'em up, hack'n slash, luta)", "st": "backlog", "o": "Steam", "hl": 22.0, "pr": "Media"},
+  {"n": "Alien: Isolation", "p": "PC", "g": "Terror", "st": "backlog", "o": "Epic", "hl": 18.5, "pr": "Media"},
+  {"n": "Hollow Knight", "p": "PC", "g": "Ação e aventura (Metroidvania, open world)", "st": "backlog", "o": "Steam, Epic", "hl": 27.5, "pr": "Alta"},
+  {"n": "Celeste", "p": "PC", "g": "Plataforma", "st": "backlog", "o": "Epic, Steam", "hl": 8.5, "pr": "Alta"},
+  {"n": "Disco Elysium", "p": "PC", "g": "RPG", "st": "backlog", "o": "GOG", "hl": 22.5, "pr": "Baixa"},
+  {"n": "Golden Sun", "p": "GBA", "g": "RPG", "st": "backlog", "hl": 30.0, "pr": "Alta"},
+  {"n": "Advance Wars", "p": "GBA", "g": "Estratégia (Tatics, tower defense, RTS)", "st": "backlog", "hl": 16.0},
+  {"n": "Metroid Fusion", "p": "GBA", "g": "Ação e aventura (Metroidvania, open world)", "st": "done", "d": "Antes de 2022", "t": 0.0, "u": 9},
+  {"n": "The Order: 1886", "p": "PS4", "g": "Tiro (FPS, TPS)", "st": "done", "d": "Antes de 2022", "t": 0.0},
+  {"n": "Super Mario Odyssey", "p": "Switch", "g": "Plataforma", "st": "done", "d": "Antes de 2022", "t": 25.0, "u": 10, "z": 2},
+  {"n": "Outer Wilds", "p": "PC", "g": "Aventura (Visual Novel, point and click)", "st": "done", "d": "2024-08-10", "t": 19.5, "u": 10, "h": "Um viajante preso num ciclo de 22 minutos tenta descobrir por que o sol explode."},
+  {"n": "Dead Space", "p": "PC", "g": "Terror", "st": "dropped", "d": "2025-03-02", "t": 4.0},
+  {"n": "The Legend of Zelda: Tears of the Kingdom", "p": "Switch", "g": "Ação e aventura (Metroidvania, open world)", "st": "hype", "d": "2023-05-12"},
+  {"n": "Hollow Knight: Silksong", "p": "Switch", "g": "Ação e aventura (Metroidvania, open world)", "st": "hype", "d": "2025-09-04"}
+]

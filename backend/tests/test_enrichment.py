@@ -108,8 +108,8 @@ def fakes(db, monkeypatch):
 
 
 @pytest.fixture
-def alien(db, planilha, fakes):
-    import_short_json(db, 1, planilha)
+def alien(db, biblioteca, fakes):
+    import_short_json(db, 1, biblioteca)
     game = db.scalars(select(Game).where(Game.name == "Alien: Isolation")).one()
     return game.id
 
@@ -253,7 +253,7 @@ async def test_disabled_provider_is_skipped(db, alien, fakes):
 
 async def test_batch_job_resumes_and_skips_done(db, alien, fakes):
     ids = jobs.select_game_ids(db, 1, EnrichIn(scope="missing"))
-    assert len(ids) == 240
+    assert len(ids) == 16
     job = jobs.request_enrich(db, 1, EnrichIn(game_ids=ids[:3]))
     job.params = {**job.params, "done": [ids[0]]}  # simula restart após o 1º jogo
     job.status = "running"
@@ -351,8 +351,8 @@ async def test_parallel_progress_counts_every_game(db, alien, fakes):
     import asyncio
 
     job = jobs.request_enrich(db, 1, EnrichIn(scope="missing"))
-    ids = job.params["game_ids"][:60]
+    ids = job.params["game_ids"]
     await asyncio.gather(*(asyncio.to_thread(jobs._progress, job.id, gid, True, None) for gid in ids))
     db.expire_all()
     job = db.get(Job, job.id)
-    assert job.processed == job.succeeded == 60 and sorted(job.params["done"]) == sorted(ids)
+    assert job.processed == job.succeeded == len(ids) == 16 and sorted(job.params["done"]) == sorted(ids)

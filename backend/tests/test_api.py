@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app
-from tests.conftest import PLANILHA
+from tests.conftest import BIBLIOTECA
 
 
 @pytest.fixture
@@ -16,9 +16,9 @@ def client(data_dir):
 
 @pytest.fixture
 def loaded(client):
-    r = client.post("/api/import/json", files={"file": ("planilha.json", PLANILHA.read_bytes(), "application/json")})
+    r = client.post("/api/import/json", files={"file": ("biblioteca.json", BIBLIOTECA.read_bytes(), "application/json")})
     assert r.status_code == 200, r.text
-    assert r.json()["created"] == 240
+    assert r.json()["created"] == 16
     return client
 
 
@@ -37,7 +37,7 @@ def test_health_and_meta(client):
 
 def test_list_and_detail(loaded):
     games = loaded.get("/api/games").json()
-    assert len(games) == 240
+    assert len(games) == 16
     card = _find(loaded, "Eastward")
     detail = loaded.get(f"/api/games/{card['id']}").json()
     assert detail["platform"] == "PC" and detail["status"] == "done" and detail["user_score"] == 8
@@ -103,9 +103,9 @@ def test_create_manual_game(loaded):
 
 def test_platform_delete_conflict_and_devices(loaded):
     plats = {p["name"]: p for p in loaded.get("/api/platforms").json()}
-    assert plats["GBA"]["game_count"] == 29
+    assert plats["GBA"]["game_count"] == 3
     r = loaded.delete(f"/api/platforms/{plats['GBA']['id']}")
-    assert r.status_code == 409 and "29" in r.json()["detail"]
+    assert r.status_code == 409 and "3 jogo(s)" in r.json()["detail"]
     assert loaded.post("/api/platforms", json={"name": "gba"}).status_code == 409
 
     new = loaded.post("/api/platforms", json={"name": "PC Engine"}).json()
@@ -123,11 +123,11 @@ def test_export_roundtrip(loaded, tmp_path):
     gid = _find(loaded, "Eastward")["id"]
     loaded.post(f"/api/games/{gid}/comments", json={"body": "nota de progresso"})
     exported = loaded.get("/api/export.json").json()
-    assert exported["version"] == 1 and len(exported["games"]) == 240
+    assert exported["version"] == 1 and len(exported["games"]) == 16
 
     csv_text = loaded.get("/api/export.csv").content.decode("utf-8")
     assert csv_text.startswith("﻿Nome;Plataforma")
-    assert len(csv_text.strip().splitlines()) == 241
+    assert len(csv_text.strip().splitlines()) == 17
 
     r = loaded.post(
         "/api/import/json?mode=substituir",
@@ -184,7 +184,7 @@ def test_integration_and_job_endpoints(loaded):
     assert loaded.post(f"/api/jobs/{job['id']}/cancel").json()["status"] == "cancelled"
 
     batch = loaded.post("/api/jobs/enrich", json={"scope": "missing"}).json()
-    assert batch["total"] == 240
+    assert batch["total"] == 16
     assert [j["id"] for j in loaded.get("/api/jobs").json()][:2] == [batch["id"], job["id"]]
     assert [j["id"] for j in loaded.get("/api/jobs", params={"kind": "refresh"}).json()] == [job["id"]]
 
