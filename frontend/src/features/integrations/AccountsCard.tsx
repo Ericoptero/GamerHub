@@ -69,7 +69,7 @@ export function AccountsCard() {
         )}
       </div>
       <p className="lead">
-        Os jogos das contas entram na lista <strong>Biblioteca</strong>. O mesmo jogo em várias contas vira um só, com o
+        Os jogos das contas entram no status <strong>Biblioteca</strong>. O mesmo jogo em várias contas vira um só, com o
         apelido de cada conta. Checagem automática uma vez por dia, a partir das {hour}h; os jogos novos já chegam com
         capa, HLTB e Metacritic.
       </p>

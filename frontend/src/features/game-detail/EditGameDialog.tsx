@@ -137,7 +137,7 @@ function EditForm({ game, onClose }: { game: GameDetail; onClose: () => void }) 
           </select>
         </label>
         <label className="field">
-          Lista
+          Status
           <select className="select" value={f.status} onChange={(e) => set("status", e.target.value as Status)}>
             {STATUS_ORDER.map((s) => (
               <option key={s} value={s}>

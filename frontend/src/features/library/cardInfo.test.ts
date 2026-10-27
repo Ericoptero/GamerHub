@@ -67,5 +67,8 @@ describe("informações do card", () => {
     expect(p.accent).toBe("#ffffff");
     expect(p.coverSize).toBe(DEFAULT_PREFS.coverSize);
     expect(p.card).toEqual({ platform: true, devices: false, accounts: true, score: true, auto: true });
+    expect(p.view).toBe("grid");
+    expect(parsePrefs({ view: "list" }).view).toBe("list");
+    expect(parsePrefs({ view: "tabela" }).view).toBe("grid");
   });
 });

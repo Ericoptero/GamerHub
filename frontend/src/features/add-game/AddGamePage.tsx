@@ -3,15 +3,16 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { errorMessage } from "../../api/client";
 import { useCreateGame, useDevices, useExternalSearch, useGenres, useMeta, usePlatforms } from "../../api/queries";
-import type { Candidate, Device, Platform, Priority, SearchProvider, Status } from "../../api/types";
+import type { Candidate, Device, Priority, SearchProvider, Status } from "../../api/types";
 import { useToast } from "../../components/Toast";
 import { PRIORITIES, PRIORITY_LABEL, STATUS1, STATUS_ORDER } from "../../lib/constants";
 import { initials } from "../../lib/cover";
 import { parseNum } from "../../lib/format";
 import { summarizePlatforms } from "../../lib/platforms";
-import { fold, splitList } from "../../lib/text";
+import { splitList } from "../../lib/text";
 import { useDebounced } from "../../lib/useDebounced";
 import styles from "./AddGamePage.module.css";
+import { defaultPlatform, suggestFromCandidate } from "./suggest";
 
 const SOURCES: { value: SearchProvider; label: string }[] = [
   { value: "igdb", label: "IGDB" },
@@ -24,10 +25,6 @@ function availability(platformId: number | null, devices: Device[]): string {
   if (platformId === null) return "—";
   const ds = devices.filter((d) => d.platform_ids.includes(platformId));
   return ds.length ? ds.map((d) => d.name).join(", ") : "nenhum aparelho cadastrado";
-}
-
-function defaultPlatform(platforms: Platform[]): string {
-  return String((platforms.find((p) => p.name === "PC") ?? platforms[0])?.id ?? "");
 }
 
 export function AddGamePage() {
@@ -84,11 +81,7 @@ function IntegrationSearch({ onManual }: { onManual: () => void }) {
   const choose = (c: Candidate | null) => {
     setPicked(c);
     if (!c) return;
-    const runs = allPlatforms.filter((p) => c.local_platform_ids.includes(p.id));
-    const platform =
-      platformFilter || String((runs.find((p) => p.name === "PC") ?? runs[0])?.id ?? defaultPlatform(allPlatforms));
-    const suggested = c.suggested_genre ? fold(c.suggested_genre) : null;
-    const genre = suggested ? String(genres.data?.find((g) => fold(g.name) === suggested)?.id ?? "") : "";
+    const { platform, genre } = suggestFromCandidate(c, allPlatforms, genres.data ?? [], platformFilter);
     setCfg((prev) => ({ ...prev, platform, genre }));
   };
 
@@ -240,7 +233,7 @@ function IntegrationSearch({ onManual }: { onManual: () => void }) {
               </select>
             </label>
             <label className="field">
-              Lista
+              Status
               <select className="select" value={cfg.status} onChange={(e) => setCfg({ ...cfg, status: e.target.value as Status })}>
                 {LIST_OPTIONS.map((s) => (
                   <option key={s} value={s}>
@@ -387,7 +380,7 @@ function ManualForm() {
           </select>
         </label>
         <label className="field">
-          Lista
+          Status
           <select className="select" value={f.status} onChange={(e) => set("status", e.target.value)}>
             {LIST_OPTIONS.map((s) => (
               <option key={s} value={s}>

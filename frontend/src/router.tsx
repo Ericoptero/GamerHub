@@ -9,6 +9,9 @@ import { DevicesPage } from "./features/devices/DevicesPage";
 import { GameDetailPage } from "./features/game-detail/GameDetailPage";
 import { IntegrationsPage } from "./features/integrations/IntegrationsPage";
 import { LibraryPage } from "./features/library/LibraryPage";
+import { ListDetailPage } from "./features/lists/ListDetailPage";
+import { ListsPage } from "./features/lists/ListsPage";
+import { PublicListPage } from "./features/public/PublicListPage";
 import { PublicPage } from "./features/public/PublicPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 
@@ -23,12 +26,15 @@ export const router = createBrowserRouter([
   // Página pública de cada usuário (/bruno). Fora do Layout: abre sem login. Os caminhos fixos acima e abaixo
   // (biblioteca, jogos…) ganham do parâmetro, e o backend não deixa criar usuário com esses nomes.
   { path: ":username", element: <PublicPage /> },
+  { path: ":username/listas/:listId", element: <PublicListPage /> },
   {
     element: <Layout />,
     children: [
       { index: true, element: <Navigate to="/biblioteca" replace /> },
       { path: "biblioteca", element: <LibraryPage /> },
       { path: "jogos/:id", element: <GameDetailPage /> },
+      { path: "listas", element: <ListsPage /> },
+      { path: "listas/:id", element: <ListDetailPage /> },
       { path: "adicionar", element: <AddGamePage /> },
       { path: "consoles", element: <DevicesPage /> },
       { path: "integracoes", element: <IntegrationsPage /> },

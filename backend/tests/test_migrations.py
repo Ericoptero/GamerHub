@@ -77,3 +77,11 @@ def test_upgrade_from_0001_keeps_children(empty_db):
         )
     with pytest.raises(IntegrityError), dbmod.get_engine().begin() as conn:
         conn.execute(text("UPDATE games SET status = 'whatever'"))
+
+    # 0006: listas. Pública por padrão, e apagar o jogo tira ele da lista.
+    with dbmod.get_engine().begin() as conn:
+        conn.execute(text("INSERT INTO lists (id, user_id, name) VALUES (1, 1, 'Top')"))
+        conn.execute(text("INSERT INTO list_items (list_id, game_id, position) VALUES (1, 1, 0)"))
+        assert conn.execute(text("SELECT ranked, public FROM lists")).one() == (0, 1)
+        conn.execute(text("DELETE FROM games WHERE id = 1"))
+        assert (_count(conn, "lists"), _count(conn, "list_items")) == (1, 0)

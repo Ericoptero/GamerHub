@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from app import db as dbmod
-from app.api import accounts, auth, catalog, games, integrations, io, public, users
+from app.api import accounts, auth, catalog, games, integrations, io, lists, public, users
 from app.api import settings as settings_api
 from app.api.public import media_is_public
 from app.auth.sessions import COOKIE, resolve_token
@@ -111,7 +111,7 @@ def create_app() -> FastAPI:
     app.add_middleware(GZipMiddleware, minimum_size=2048)
     if settings.auth_enabled:
         install_auth_guard(app)
-    routers = (auth, users, settings_api, public, catalog, games, integrations, accounts, io)
+    routers = (auth, users, settings_api, public, catalog, games, lists, integrations, accounts, io)
     for router in (m.router for m in routers):
         app.include_router(router)
     app.mount("/media", CachedStaticFiles(directory=settings.media_dir, check_dir=False), name="media")

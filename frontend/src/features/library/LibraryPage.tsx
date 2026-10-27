@@ -1,22 +1,21 @@
-import { useEffect, useLayoutEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link, useLocation, useNavigationType, useSearchParams } from "react-router";
 
 import { errorMessage } from "../../api/client";
 import { useAccounts, useDevices, useGames, useSetHidden } from "../../api/queries";
-import type { Account, GameCard, Priority } from "../../api/types";
+import type { GameCard, Priority } from "../../api/types";
 import { Dialog } from "../../components/Dialog";
-import { GameCover } from "../../components/GameCover";
 import { Icon } from "../../components/Icon";
 import { ErrorState, LoadingState } from "../../components/NotFound";
-import { StoreMark } from "../../components/StoreMark";
 import { useToast } from "../../components/Toast";
-import { STATUS, STATUS_DOT, STORE_LABEL, mcColor } from "../../lib/constants";
-import { hrs } from "../../lib/format";
+import { STATUS, STATUS_DOT } from "../../lib/constants";
 import { usePrefs } from "../../lib/prefs";
 import { MOBILE, useMediaQuery } from "../../lib/useMediaQuery";
 import { CardDisplayMenu } from "./CardDisplayMenu";
-import { cardDisplay, devicesByPlatform, metaLine, sharedSummary, type CardDisplay } from "./cardInfo";
+import { cardDisplay, devicesByPlatform, sharedSummary } from "./cardInfo";
 import { FilterPanel } from "./FilterPanel";
+import { GameRows } from "./GameRows";
+import { LibraryCard } from "./LibraryCard";
 import {
   SORTS,
   TAB_ORDER,
@@ -33,8 +32,9 @@ import {
   type Tab,
 } from "./filters";
 import styles from "./LibraryPage.module.css";
-import { FROM_LIBRARY, rememberAnchor, rememberSearch, savedAnchor } from "./returnTo";
+import { rememberAnchor, rememberSearch, savedAnchor, useScrollToAnchor } from "./returnTo";
 import { deviceCounts, libraryStats, statusCounts } from "./selectors";
+import { ViewToggle } from "./ViewToggle";
 
 const PRIO_PILLS: [Priority | "", string][] = [
   ["", "Todas prioridades"],
@@ -42,8 +42,6 @@ const PRIO_PILLS: [Priority | "", string][] = [
   ["Media", "Média"],
   ["Baixa", "Baixa"],
 ];
-
-const ALIGN_FRAMES = 20;
 
 const TAB_LABEL = (t: Tab) => (t === "all" ? "Todos os jogos" : t === "hidden" ? "Ocultos" : STATUS[t]);
 const TAB_SHORT = (t: Tab) => (t === "all" ? "Todos" : t === "hidden" ? "Ocultos" : STATUS[t]);
@@ -90,33 +88,7 @@ export function LibraryPage() {
 
   useEffect(() => rememberSearch(urlKey), [urlKey]);
 
-  // Rola até o card clicado. Só a posição da janela não basta: a altura dos cards fora da tela é
-  // estimada (content-visibility) e a lista chegaria no lugar errado. Roda depois do ScrollRestoration.
-  const ready = games.isSuccess;
-  useLayoutEffect(() => {
-    if (!ready || !restore) return;
-    // Os cards que chegam perto da tela só ganham a altura de verdade nos quadros seguintes e empurram
-    // a lista: corrige por ~1/3 s, ou até a pessoa rolar.
-    let frame = 0;
-    let left = ALIGN_FRAMES;
-    const align = () => {
-      const el = document.querySelector(`[data-game="${restore.id}"]`);
-      if (!el) return;
-      const delta = el.getBoundingClientRect().top - restore.top;
-      if (Math.abs(delta) >= 1) window.scrollBy(0, delta);
-      if (--left > 0) frame = requestAnimationFrame(align);
-    };
-    const stop = () => cancelAnimationFrame(frame);
-    const input = new AbortController();
-    for (const ev of ["wheel", "touchstart", "keydown"]) {
-      window.addEventListener(ev, stop, { passive: true, signal: input.signal });
-    }
-    align();
-    return () => {
-      stop();
-      input.abort();
-    };
-  }, [ready, restore]);
+  useScrollToAnchor(games.isSuccess, restore);
 
   if (games.isError) return <ErrorState error={games.error} onRetry={() => games.refetch()} />;
   if (games.isPending) return <LoadingState text="Carregando sua biblioteca…" />;
@@ -127,6 +99,9 @@ export function LibraryPage() {
     set({ ...f, tab, sort, dir: SORTS[sort].dir });
   };
   const changeSort = (sort: SortKey) => patch({ sort, dir: SORTS[sort].dir });
+  // Cabeçalho da visão em lista: a coluna ativa inverte a direção.
+  const sortByColumn = (sort: SortKey) =>
+    sort === f.sort ? patch({ dir: f.dir === "asc" ? "desc" : "asc" }) : changeSort(sort);
   const singleDevice = f.devices.length === 1 ? f.devices[0] : null;
   const singlePrio = f.priorities.length === 1 ? f.priorities[0] : f.priorities.length ? null : "";
   const tabs = TAB_ORDER.filter((k) => k !== "hidden" || hiddenCount > 0 || f.tab === "hidden");
@@ -149,9 +124,9 @@ export function LibraryPage() {
 
   return (
     <div className={styles.layout}>
-      <aside aria-label="Listas e aparelhos" className={styles.sidebar}>
+      <aside aria-label="Status e aparelhos" className={styles.sidebar}>
         <div className={styles.group}>
-          <span className={`eyebrow ${styles.groupLabel}`}>Listas</span>
+          <span className={`eyebrow ${styles.groupLabel}`}>Status</span>
           <div className={styles.lists}>
             {tabs.map((k) => (
               <button
@@ -261,6 +236,7 @@ export function LibraryPage() {
               <Icon name="filter" size={14} /> Filtros
               {chips.length > 0 && <span className={styles.badge}>{chips.length}</span>}
             </button>
+            <ViewToggle />
             <CardDisplayMenu />
           </div>
         </div>
@@ -325,7 +301,7 @@ export function LibraryPage() {
             </div>
           ) : f.tab === "hidden" && tabGames.length === 0 ? (
             <div className="notice">
-              Nenhum jogo oculto. Para tirar um jogo das listas sem excluir, use o olho no canto da capa.
+              Nenhum jogo oculto. Para esconder um jogo sem excluir, use o olho no canto da capa.
             </div>
           ) : list.length === 0 ? (
             <div className="notice">
@@ -336,10 +312,23 @@ export function LibraryPage() {
                 </button>
               )}
             </div>
+          ) : prefs.view === "list" ? (
+            <GameRows
+              games={list}
+              accounts={accountsById}
+              show={show}
+              devicesOf={devicesOf}
+              onOpen={openGame}
+              onToggleHidden={toggleHidden}
+              showStatus={f.tab === "all" || f.tab === "hidden"}
+              sort={f.sort}
+              dir={f.dir}
+              onSort={sortByColumn}
+            />
           ) : (
             <div className={styles.grid}>
               {list.map((g) => (
-                <Card
+                <LibraryCard
                   key={g.id}
                   game={g}
                   accounts={accountsById}
@@ -362,112 +351,6 @@ function Stat({ value, label }: { value: string; label: string }) {
     <div className={styles.stat}>
       <span className={styles.statValue}>{value}</span>
       <span className={styles.statLabel}>{label}</span>
-    </div>
-  );
-}
-
-function prioDot(p: Priority): CSSProperties {
-  if (p === "Alta") return { background: "var(--prio-alta)" };
-  if (p === "Media") return { background: "var(--prio-media)" };
-  return { background: "transparent", boxShadow: "inset 0 0 0 1.5px var(--muted)" };
-}
-
-const MAX_ACCOUNT_CHIPS = 2;
-
-function Card({
-  game: g,
-  accounts,
-  show,
-  devicesOf,
-  onOpen,
-  onToggleHidden,
-}: {
-  game: GameCard;
-  accounts: Map<number, Account>;
-  show: CardDisplay;
-  devicesOf: Map<number, string[]>;
-  onOpen: (id: number, top: number) => void;
-  onToggleHidden: (game: GameCard) => void;
-}) {
-  const played = g.status === "done" || g.status === "dropped";
-  const timeLabel = played
-    ? g.played_hours
-      ? `${hrs(g.played_hours)} jogadas`
-      : "—"
-    : g.hltb_main_hours
-      ? (hrs(g.hltb_main_hours) ?? "")
-      : "HLTB —";
-  const owners = show.accounts ? g.account_ids.map((id) => accounts.get(id)).filter((a): a is Account => !!a) : [];
-  const meta = metaLine(g, show, devicesOf);
-  return (
-    <div className={styles.cardWrap} data-game={g.id}>
-      <Link
-        to={`/jogos/${g.id}`}
-        state={FROM_LIBRARY}
-        className={styles.card}
-        aria-label={`Abrir ${g.name}`}
-        onClick={(e) => onOpen(g.id, e.currentTarget.getBoundingClientRect().top)}
-      >
-        <GameCover
-          name={g.name}
-          platform={g.platform}
-          cover={g.cover}
-          footer={{
-            left: timeLabel,
-            right: g.metacritic_score !== null ? `MC ${g.metacritic_score}` : "MC —",
-            rightColor: mcColor(g.metacritic_score),
-          }}
-        />
-        <span className={styles.cardName}>
-          {g.status === "backlog" && g.priority && (
-            <span className={styles.prioDot} style={prioDot(g.priority)} aria-hidden="true" />
-          )}
-          <span className={styles.cardText}>{g.name}</span>
-          {show.score && g.user_score !== null && (
-            <span className={styles.userScore} title={`Sua nota: ${g.user_score}/10`}>
-              <Icon name="star" size={11} strokeWidth={0} fill="currentColor" />
-              {g.user_score}
-            </span>
-          )}
-        </span>
-        {meta && (
-          <span className={styles.meta} title={meta}>
-            {show.devices && <Icon name="device" size={12} strokeWidth={2} className={styles.metaIcon} />}
-            <span className={styles.metaText}>{meta}</span>
-          </span>
-        )}
-        {owners.length > 0 && (
-          <span className={styles.owners}>
-            {owners.slice(0, MAX_ACCOUNT_CHIPS).map((a) => (
-              <span key={a.id} className={styles.owner} title={`${STORE_LABEL[a.store]} · ${a.nickname}`}>
-                <StoreMark store={a.store} />
-                <span className="sr-only">{STORE_LABEL[a.store]} ·</span>
-                <span className={styles.ownerName}>{a.nickname}</span>
-              </span>
-            ))}
-            {owners.length > MAX_ACCOUNT_CHIPS && (
-              <span
-                className={styles.owner}
-                title={owners
-                  .slice(MAX_ACCOUNT_CHIPS)
-                  .map((a) => a.nickname)
-                  .join(", ")}
-              >
-                +{owners.length - MAX_ACCOUNT_CHIPS}
-              </span>
-            )}
-          </span>
-        )}
-      </Link>
-      <button
-        type="button"
-        className={styles.hideBtn}
-        onClick={() => onToggleHidden(g)}
-        aria-label={g.hidden ? `Mostrar ${g.name} nas listas` : `Ocultar ${g.name}`}
-        title={g.hidden ? "Mostrar nas listas" : "Ocultar (fica só em Ocultos)"}
-      >
-        <Icon name={g.hidden ? "eye" : "eyeOff"} size={16} />
-      </button>
     </div>
   );
 }

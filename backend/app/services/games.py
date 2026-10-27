@@ -332,9 +332,10 @@ _LINK_COPY = ("provider", "external_id", "external_url", "matched_name", "match_
 
 
 def merge_games(db: Session, target: Game, source: Game) -> Game:
-    """Junta `source` em `target` e apaga `source`: contas de loja, comentários, mídia manual, links,
-    lojas e os campos que faltam no destino. Os dois são do mesmo usuário (o chamador garante)."""
+    """Junta `source` em `target` e apaga `source`: contas de loja, comentários, listas, mídia manual,
+    links, lojas e os campos que faltam no destino. Os dois são do mesmo usuário (o chamador garante)."""
     from app.library.sync import update_played_hours
+    from app.services.lists import repoint_game
 
     if target.id == source.id:
         raise HTTPException(409, "Escolha outro jogo para mesclar")
@@ -343,6 +344,7 @@ def merge_games(db: Session, target: Game, source: Game) -> Game:
     db.execute(update(Comment).where(Comment.game_id == source.id).values(game_id=target.id))
     db.expire(source, ["comments"])
     db.expire(target, ["comments"])
+    repoint_game(db, source.id, target.id)
     have_media = {(m.kind, m.url) for m in target.media}
     for m in source.media:
         if m.provider == "manual" and (m.kind, m.url) not in have_media:

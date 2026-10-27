@@ -44,7 +44,7 @@ export function Hero({
           }}
         >
           <Icon name="back" strokeWidth={2.4} />
-          Biblioteca
+          <span className={styles.backText}>{back.label}</span>
         </Link>
         <div className={styles.heroRow}>
           <GameCover name={game.name} platform={game.platform} cover={game.cover} size="hero" alt={`Capa de ${game.name}`} />
@@ -69,14 +69,14 @@ export function Hero({
   );
 }
 
-/** Em qual lista o jogo está: um clique troca, e a linha de baixo explica a lista apontada. */
+/** Em qual status o jogo está: um clique troca, e a linha de baixo explica o status apontado. */
 function ListPicker({ game, onMove, busy }: { game: GameDetail; onMove: (s: Status) => void; busy: boolean }) {
   const [hovered, setHovered] = useState<Status | null>(null);
   const shown = hovered ?? game.status;
   return (
     <div className={styles.picker}>
       <span id="h-lista" className={styles.pickerLabel}>
-        Em qual lista?
+        Status
       </span>
       <div className={styles.moves} role="group" aria-labelledby="h-lista" onMouseLeave={() => setHovered(null)}>
         {STATUS_ORDER.map((s) => {

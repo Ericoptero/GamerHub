@@ -40,32 +40,42 @@ O objetivo é ter um lugar só, rápido de consultar, que:
 
 1. importe sozinho as bibliotecas das lojas e junte o mesmo jogo de várias contas;
 2. busque os metadados (IGDB, RAWG, HowLongToBeat, Metacritic) sem digitação;
-3. deixe filtrar e ordenar por aparelho, tempo, nota, tag e lista;
-4. guarde suas notas, reviews e anotações de progresso;
-5. rode em casa, num container, sem depender de serviço de terceiros para guardar os dados.
+3. deixe filtrar e ordenar por aparelho, tempo, nota, tag e status;
+4. junte os jogos em listas próprias e mostre quanto de cada uma já foi terminado;
+5. guarde suas notas, reviews e anotações de progresso;
+6. rode em casa, num container, sem depender de serviço de terceiros para guardar os dados.
 
 ## O que ele faz
 
 ### Biblioteca e filtros
 
-Listas (Lista de espera, Jogando, Finalizados, Dropados, Hype, Biblioteca, Ocultos), filtro por
+Status (Lista de espera, Jogando, Finalizados, Dropados, Hype, Biblioteca, Ocultos), filtro por
 aparelho na lateral e um painel de filtros com plataforma, loja, conta, gênero, tags, faixas de
 Metacritic, tempo do HLTB, horas jogadas e atalhos como "Curtos e bem avaliados". A biblioteca
-tem 15 ordenações, entre elas "nota por hora" (Metacritic ÷ HLTB).
+tem 15 ordenações, entre elas "nota por hora" (Metacritic ÷ HLTB), e aparece em grade de capas ou
+em lista, com uma linha por jogo e ordenação clicando no cabeçalho das colunas.
 
-![Painel de filtros aberto na lista Biblioteca](docs/screenshots/filtros.png)
+![Painel de filtros aberto no status Biblioteca](docs/screenshots/filtros.png)
+
+### Listas
+
+Listas suas, no estilo do Backloggd ("Metroidvanias", "Para jogar em 2027"), com jogos da
+biblioteca ou novos, buscados no IGDB ou na RAWG. Cada lista mostra o progresso pelo status dos
+jogos (finalizados, jogando, dropados e quantos faltam) e pode ser ranqueada, com a posição de cada
+jogo (#1, #2…) na ordem que você arrastar.
 
 ### Página do jogo
 
 Descrição, trailer e screenshots, Metacritic (crítica e usuários), tempos do HowLongToBeat,
 horas jogadas por conta, onde dá para jogar, tags, sua nota e review, comentários de progresso e
-o resumo da história. Mudar de lista e de prioridade leva um clique.
+o resumo da história. Mudar de status e de prioridade leva um clique, e o card **Listas** põe o
+jogo nas suas listas.
 
 ![Página de um jogo com descrição, notas, tempos e contas](docs/screenshots/jogo.png)
 
 ### Contas das lojas
 
-Várias contas Steam, Epic e GOG, cada uma com um apelido. Os jogos entram na lista
+Várias contas Steam, Epic e GOG, cada uma com um apelido. Os jogos entram no status
 **Biblioteca**, o mesmo jogo em contas diferentes vira um só, e uma checagem diária traz os jogos
 novos com os metadados.
 
@@ -88,8 +98,8 @@ o resultado certo, procura por outro nome ou cola o link da página do jogo.
 
 ### Página pública e celular
 
-Cada usuário tem uma página só de leitura em `/<usuario>` para mostrar a lista de jogos. O app
-inteiro funciona no celular.
+Cada usuário tem uma página só de leitura em `/<usuario>` para mostrar os jogos e as listas
+públicas. O app inteiro funciona no celular.
 
 | Página pública | No celular |
 |---|---|
@@ -176,7 +186,8 @@ prévia, sugere o mapeamento das colunas, deduz o status pelo nome da aba ("List
 
 - **novos:** ignora o que já existe.
 - **atualizar:** sobrescreve os campos que vierem na planilha e acompanha mudança de status.
-- **substituir:** apaga tudo e importa de novo, fazendo um backup antes.
+- **substituir:** apaga tudo e importa de novo, fazendo um backup antes. As suas listas continuam,
+  mas vazias, porque a planilha não tem listas.
 
 Um `export.json` de outro GamerHub entra por **Integrações → Importar → JSON** ou pelo terminal:
 
@@ -280,11 +291,34 @@ ela, e o filtro também fica em **Filtros → Sobre o jogo**. Em **Editar** dá 
 partir daí a integração não mexe mais nelas até você destravar. Para trazer as tags novas para uma
 biblioteca já enriquecida, rode **Buscar dados → Todos** marcando "Ignorar o cache".
 
+### Listas
+
+Em **Listas** (no menu) você cria uma lista com nome, descrição e duas opções:
+
+- **Ranqueada:** cada jogo mostra a posição na lista (#1, #2…), como num ranking.
+- **Pública:** a lista aparece na sua [página pública](#página-pública). Vem ligada.
+
+Para pôr jogos, use **Adicionar jogos** na lista ou o card **Listas** na página de cada jogo. A busca
+mostra primeiro os jogos da sua biblioteca. O que não estiver nela vem do IGDB ou da RAWG (precisa da
+chave): você escolhe a plataforma e o status, e o jogo entra na biblioteca, com os metadados, e na
+lista.
+
+- **Progresso:** vem do status de cada jogo. A barra separa finalizados, jogando e dropados, e mostra
+  quantos faltam e as horas do HLTB que ainda faltam. Mudar o status de um jogo atualiza todas as
+  listas em que ele está.
+- **Ordem:** em **Organizar**, arraste as linhas ou use as setas (no celular). Fora desse modo dá para
+  ver a lista por nome, nota, Metacritic e as outras ordenações da biblioteca sem mexer na ordem dela.
+- **Grade ou lista:** a mesma escolha da biblioteca (capas ou linhas) vale para as listas.
+- **Jogos ocultos:** continuam na lista, apagados e com o selo "Oculto". Na página pública eles não
+  aparecem.
+- **Apagar ou mesclar:** um jogo apagado sai de todas as listas. Na mesclagem, o jogo que fica herda
+  o lugar do outro.
+
 ### Backup e exportação
 
 Em **Integrações → Exportar** estão:
 
-- `export.json`: o backup completo, reimportável no modo "substituir".
+- `export.json`: o backup completo, com as listas, reimportável no modo "substituir".
 - `export.csv`: no formato da planilha (`;`, abre direto no Excel).
 - `backup.sqlite`: cópia do banco.
 
@@ -315,13 +349,14 @@ AUTH_ALLOW_SIGNUP=true   # false fecha o cadastro; aí só um administrador cria
 
 Cada usuário tem uma página só de leitura em `http://<servidor>/<usuario>`, aberta para qualquer
 um, mesmo com o login ligado. Ela mostra os cards dos jogos (capa, status, plataforma, nota,
-Metacritic, horas e tags) com abas por lista, busca e filtro por tag. Jogos ocultos nunca
-aparecem, e comentários, contas de loja e aparelhos ficam de fora.
+Metacritic, horas e tags) com abas por status, busca e filtro por tag, e as suas listas públicas,
+cada uma com o progresso e a própria página. Jogos ocultos nunca aparecem, e comentários, contas de
+loja e aparelhos ficam de fora.
 
 Em **Configurações** cada um troca o nome de usuário (que é o endereço da página), o nome de
 exibição e liga ou desliga a página. Ela vem ligada; desligada, o endereço responde "página não
-encontrada". Nomes que já são caminhos do app (`biblioteca`, `jogos`, `api`…) não podem ser
-usados. Com o login desligado, o único usuário se chama `principal` até você trocar.
+encontrada". Nomes que já são caminhos do app (`biblioteca`, `jogos`, `listas`, `api`…) não podem
+ser usados. Com o login desligado, o único usuário se chama `principal` até você trocar.
 
 ## Desenvolvimento
 
@@ -368,8 +403,8 @@ Enquanto isso o app continua funcionando, e dá para editar HLTB e Metacritic à
 
 ```
 backend/app/
-  api/            rotas REST (games, catalog, integrations, io)
-  models/         SQLAlchemy (games, platforms, devices, links, jobs, cache…)
+  api/            rotas REST (games, lists, catalog, integrations, io)
+  models/         SQLAlchemy (games, lists, platforms, devices, links, jobs, cache…)
   services/       importação (JSON/planilha), exportação, backup, cache de imagens
   integrations/   igdb, rawg, hltb, metacritic + matching (rapidfuzz), cache e HTTP com rate limit
   enrichment/     orquestrador (merge) e fila de jobs asyncio persistida
@@ -396,7 +431,8 @@ planilha de backlog.
 4. **Iterações.** A cada rodada o app era usado de verdade num homelab, e o que incomodava virava a
    próxima tarefa: multiusuário opcional; contas Steam, Epic e GOG com checagem diária e mesclagem;
    filtros ricos e 15 ordenações; "Precisa da sua ajuda" por jogo; jogos ocultos; busca pelo link
-   da página do jogo; chaves de API na tela de Configurações; página pública e tags.
+   da página do jogo; chaves de API na tela de Configurações; página pública e tags; listas no
+   estilo do Backloggd e a biblioteca em lista.
 
 A pilha escolhida:
 

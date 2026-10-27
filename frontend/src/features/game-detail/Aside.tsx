@@ -250,7 +250,7 @@ export function InfoCard({
           <Icon name="link" size={14} /> Mesclar…
         </button>
         <button type="button" className="btn btn-sm" onClick={onToggleHidden}>
-          <Icon name={game.hidden ? "eye" : "eyeOff"} size={14} /> {game.hidden ? "Mostrar nas listas" : "Ocultar"}
+          <Icon name={game.hidden ? "eye" : "eyeOff"} size={14} /> {game.hidden ? "Mostrar de novo" : "Ocultar"}
         </button>
         <button type="button" className="btn btn-sm btn-danger" onClick={onDelete}>
           <Icon name="trash" size={14} /> Excluir

@@ -78,6 +78,10 @@
   display: none;
 }
 
+.navShort {
+  display: none;
+}
+
 .add {
   text-decoration: none;
 }
@@ -170,7 +174,7 @@
   }
 
   .navItem {
-    padding: 0 10px;
+    padding: 0 8px;
     white-space: nowrap;
   }
 
@@ -178,8 +182,13 @@
     display: block;
   }
 
-  .navText {
+  .navText,
+  .navLong {
     display: none;
+  }
+
+  .navShort {
+    display: inline;
   }
 
   .brand {

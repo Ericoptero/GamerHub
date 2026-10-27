@@ -17,6 +17,9 @@ import type {
   GameCard,
   GameCreate,
   GameDetail,
+  GameList,
+  GameListCreate,
+  GameListPatch,
   GamePatch,
   Genre,
   Job,
@@ -57,6 +60,7 @@ export const keys = {
   accounts: ["accounts"] as const,
   apiKeys: ["api-keys"] as const,
   publicProfile: (username: string) => ["public", username.toLowerCase()] as const,
+  lists: ["lists"] as const,
 };
 
 // ---------- leitura ----------
@@ -196,6 +200,7 @@ export function useDeleteGame() {
       qc.removeQueries({ queryKey: keys.game(id) });
       qc.invalidateQueries({ queryKey: keys.games });
       qc.invalidateQueries({ queryKey: keys.platforms });
+      qc.invalidateQueries({ queryKey: keys.lists });
     },
   });
 }
@@ -380,8 +385,75 @@ export function useMergeGame(targetId: number) {
       qc.removeQueries({ queryKey: keys.game(sourceId) });
       qc.invalidateQueries({ queryKey: keys.games });
       qc.invalidateQueries({ queryKey: keys.accounts });
+      qc.invalidateQueries({ queryKey: keys.lists });
     },
   });
+}
+
+// ---------- listas ----------
+
+export const useLists = () =>
+  useQuery({ queryKey: keys.lists, queryFn: () => api.get<GameList[]>("/api/lists"), staleTime: 30_000 });
+
+/** Troca os jogos de uma lista no cache na hora; devolve o rollback. */
+function optimisticList(qc: QueryClient, listId: number, change: (ids: number[]) => number[]) {
+  const prev = qc.getQueryData<GameList[]>(keys.lists);
+  if (prev) {
+    qc.setQueryData<GameList[]>(
+      keys.lists,
+      prev.map((l) => (l.id === listId ? { ...l, game_ids: change(l.game_ids) } : l)),
+    );
+  }
+  return () => prev && qc.setQueryData(keys.lists, prev);
+}
+
+export function useListMutations() {
+  const qc = useQueryClient();
+  const done = () => qc.invalidateQueries({ queryKey: keys.lists });
+  // Pôr, tirar e reordenar mudam o cache na hora. Arrastando vários seguidos, só a última volta da API
+  // recarrega: uma resposta antiga desfaria na tela o que a pessoa acabou de mover.
+  const games = {
+    mutationKey: keys.lists,
+    onError: (_e: unknown, _v: unknown, ctx: { rollback: () => void } | undefined) => ctx?.rollback(),
+    onSettled: () => {
+      if (qc.isMutating({ mutationKey: keys.lists }) === 1) done();
+    },
+  };
+  return {
+    create: useMutation({ mutationFn: (l: GameListCreate) => api.post<GameList>("/api/lists", l), onSuccess: done }),
+    update: useMutation({
+      mutationFn: ({ id, patch }: { id: number; patch: GameListPatch }) => api.patch<GameList>(`/api/lists/${id}`, patch),
+      onSuccess: done,
+    }),
+    remove: useMutation({ mutationFn: (id: number) => api.del(`/api/lists/${id}`), onSuccess: done }),
+    add: useMutation({
+      ...games,
+      mutationFn: ({ listId, gameId }: { listId: number; gameId: number }) =>
+        api.post<GameList>(`/api/lists/${listId}/games`, { game_id: gameId }),
+      onMutate: async ({ listId, gameId }) => {
+        await qc.cancelQueries({ queryKey: keys.lists });
+        return { rollback: optimisticList(qc, listId, (ids) => (ids.includes(gameId) ? ids : [...ids, gameId])) };
+      },
+    }),
+    removeGame: useMutation({
+      ...games,
+      mutationFn: ({ listId, gameId }: { listId: number; gameId: number }) =>
+        api.del<GameList>(`/api/lists/${listId}/games/${gameId}`),
+      onMutate: async ({ listId, gameId }) => {
+        await qc.cancelQueries({ queryKey: keys.lists });
+        return { rollback: optimisticList(qc, listId, (ids) => ids.filter((id) => id !== gameId)) };
+      },
+    }),
+    reorder: useMutation({
+      ...games,
+      mutationFn: ({ listId, gameIds }: { listId: number; gameIds: number[] }) =>
+        api.put<GameList>(`/api/lists/${listId}/games`, { game_ids: gameIds }),
+      onMutate: async ({ listId, gameIds }) => {
+        await qc.cancelQueries({ queryKey: keys.lists });
+        return { rollback: optimisticList(qc, listId, () => gameIds) };
+      },
+    }),
+  };
 }
 
 // ---------- login e usuários ----------

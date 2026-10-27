@@ -287,6 +287,44 @@ class GamePatch(BaseModel):
     unlock: list[str] = []
 
 
+# ---------- listas ----------
+
+
+class ListOut(Out):
+    id: int
+    name: str
+    description: str | None
+    ranked: bool
+    public: bool
+    game_ids: list[int]  # na ordem da lista; os cards vêm de GET /games
+    created_at: datetime
+    updated_at: datetime
+
+
+class ListCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    description: str | None = None
+    ranked: bool = False
+    public: bool = True
+
+
+class ListPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    description: str | None = None
+    ranked: bool | None = None
+    public: bool | None = None
+
+
+class ListAddIn(BaseModel):
+    game_id: int
+
+
+class ListGamesIn(BaseModel):
+    """A ordem nova da lista inteira (os mesmos jogos que já estão nela)."""
+
+    game_ids: list[int]
+
+
 # ---------- integrações e jobs ----------
 
 
@@ -480,10 +518,19 @@ class PublicGameCard(BaseModel):
     tags: list[str] = []
 
 
+class PublicList(BaseModel):
+    id: int
+    name: str
+    description: str | None
+    ranked: bool
+    game_ids: list[int]  # só os que estão em `games` (sem os ocultos)
+
+
 class PublicProfile(BaseModel):
     username: str
     display_name: str
     games: list[PublicGameCard]
+    lists: list[PublicList] = []
 
 
 # ---------- contas de loja ----------

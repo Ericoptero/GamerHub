@@ -109,7 +109,7 @@ export interface GameCard {
   /** O mais recente entre as contas. */
   last_played_at: string | null;
   enriched: boolean;
-  /** Fora das listas; só aparece em "Ocultos". */
+  /** Fora dos status; só aparece em "Ocultos". */
   hidden: boolean;
 }
 
@@ -487,6 +487,31 @@ export interface KeyTestResult {
   message: string;
 }
 
+// ---------- listas ----------
+
+export interface GameList {
+  id: number;
+  name: string;
+  description: string | null;
+  /** Ranqueada: a posição é um ranking (#1, #2…). */
+  ranked: boolean;
+  /** Aparece na página pública. */
+  public: boolean;
+  /** Na ordem da lista; os cards vêm de GET /api/games. */
+  game_ids: number[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GameListCreate {
+  name: string;
+  description?: string | null;
+  ranked?: boolean;
+  public?: boolean;
+}
+
+export type GameListPatch = Partial<GameListCreate>;
+
 // ---------- página pública ----------
 
 export interface PublicGameCard {
@@ -507,8 +532,18 @@ export interface PublicGameCard {
   tags: string[];
 }
 
+export interface PublicList {
+  id: number;
+  name: string;
+  description: string | null;
+  ranked: boolean;
+  /** Só os que estão em `games` (sem os ocultos). */
+  game_ids: number[];
+}
+
 export interface PublicProfile {
   username: string;
   display_name: string;
   games: PublicGameCard[];
+  lists: PublicList[];
 }

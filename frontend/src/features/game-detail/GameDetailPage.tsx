@@ -13,6 +13,7 @@ import { palette } from "../../lib/cover";
 import { parseUtc, todayIso } from "../../lib/format";
 import { useBackToLibrary } from "../library/returnTo";
 import { InfoCard, ScoresCard, WhereCard } from "./Aside";
+import { ListsCard } from "./ListsCard";
 import { CommentsSection } from "./CommentsSection";
 import { EditGameDialog } from "./EditGameDialog";
 import styles from "./GameDetail.module.css";
@@ -95,7 +96,7 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
       { hidden },
       {
         onSuccess: () =>
-          toast.show(hidden ? `${game.name} foi para Ocultos.` : `${game.name} voltou para as listas.`, "ok"),
+          toast.show(hidden ? `${game.name} foi para Ocultos.` : `${game.name} voltou a aparecer.`, "ok"),
         onError: (e) => toast.error(`Não consegui ${hidden ? "ocultar" : "mostrar"}: ${errorMessage(e)}`),
       },
     );
@@ -171,6 +172,7 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
         <aside aria-label="Resumo do jogo" className={styles.aside}>
           <ScoresCard game={game} />
           <WhereCard game={game} devices={devices} />
+          <ListsCard game={game} />
           <InfoCard
             game={game}
             onEdit={() => setEditing(true)}

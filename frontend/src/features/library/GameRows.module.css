@@ -1,0 +1,240 @@
+.table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.head,
+.row {
+  display: grid;
+  grid-template-columns: var(--cols);
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+}
+
+.head {
+  min-height: 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.sortBtn:hover,
+.sortBtn[aria-pressed="true"] {
+  color: var(--text);
+}
+
+.sortBtn.num {
+  justify-content: flex-end;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rowWrap {
+  position: relative;
+  border-bottom: 1px solid var(--border);
+  /* Como os cards: em bibliotecas grandes o navegador pula as linhas fora da tela. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
+}
+
+.rowWrap:last-child {
+  border-bottom: 0;
+}
+
+.row {
+  min-height: 72px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.row:hover {
+  background: rgba(28, 36, 51, 0.45);
+}
+
+.row:hover .nameText {
+  color: #fff;
+}
+
+.rankCell {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-4);
+  text-align: right;
+}
+
+.cover {
+  width: 40px;
+}
+
+.nameCell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.nameText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.compact {
+  display: none;
+}
+
+.statusCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.num {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.score {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* A célula do botão fica vazia dentro do link; o botão vem por cima, fora dele. */
+.hideBtn {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.rowWrap:hover .hideBtn,
+.hideBtn:focus-visible {
+  opacity: 1;
+}
+
+.hideBtn:hover {
+  background: var(--bg-chip);
+  color: #fff;
+}
+
+@media (hover: none) {
+  .hideBtn {
+    opacity: 0.85;
+  }
+}
+
+@media (max-width: 640px) {
+  .head,
+  .row {
+    grid-template-columns: var(--cols-sm);
+    gap: 10px;
+    padding: 0 10px;
+  }
+
+  .row {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .head .statusCell,
+  .row .statusCell,
+  .wide {
+    display: none;
+  }
+
+  .compact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 8px;
+    color: var(--text-4);
+    font-size: 11px;
+  }
+
+  .compact:empty {
+    display: none;
+  }
+
+  .hideBtn {
+    right: 6px;
+  }
+}

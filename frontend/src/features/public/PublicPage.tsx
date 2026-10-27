@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 
 import { ApiError } from "../../api/client";
@@ -11,6 +11,8 @@ import { ErrorState, LoadingState } from "../../components/NotFound";
 import { STATUS, STATUS1, STATUS_DOT, mcColor } from "../../lib/constants";
 import { fmtDate, hrs, plural } from "../../lib/format";
 import { TagPicker } from "../library/FilterPanel";
+import { ListCard } from "../lists/ListCard";
+import { resolveGames } from "../lists/lists";
 import styles from "./PublicPage.module.css";
 import {
   PUBLIC_SORTS,
@@ -31,18 +33,32 @@ import {
 /** /<username>: a lista de jogos de alguém, só leitura e sem login. */
 export function PublicPage() {
   const { username = "" } = useParams();
+  return <PublicShell username={username}>{(profile) => <PublicLibrary profile={profile} />}</PublicShell>;
+}
+
+/** Cabeçalho, carregamento e "página não encontrada" das páginas públicas (a pessoa e as listas dela). */
+export function PublicShell({
+  username,
+  title,
+  children,
+}: {
+  username: string;
+  title?: (profile: PublicProfile) => string;
+  children: (profile: PublicProfile) => ReactNode;
+}) {
   const profile = usePublicProfile(username);
   const me = useMe();
   const isOwner = !!me.data?.user && me.data.user.username.toLowerCase() === username.toLowerCase();
 
+  const docTitle = profile.data ? (title ? title(profile.data) : `${profile.data.display_name} · Backlog`) : null;
   useEffect(() => {
-    if (!profile.data) return;
+    if (!docTitle) return;
     const previous = document.title;
-    document.title = `${profile.data.display_name} · Backlog`;
+    document.title = docTitle;
     return () => {
       document.title = previous;
     };
-  }, [profile.data]);
+  }, [docTitle]);
 
   return (
     <div className={layout.shell}>
@@ -74,30 +90,23 @@ export function PublicPage() {
           <ErrorState error={profile.error} onRetry={() => profile.refetch()} />
         )
       ) : (
-        <PublicLibrary profile={profile.data} />
+        children(profile.data)
       )}
     </div>
   );
 }
 
+const SHOW_LISTS = "listas";
+
 function PublicLibrary({ profile }: { profile: PublicProfile }) {
   const [sp, setSp] = useSearchParams();
+  // ?ver=listas troca os cards dos jogos pelos das listas públicas; escolher um status volta aos jogos.
+  const showLists = sp.get("ver") === SHOW_LISTS && profile.lists.length > 0;
   const counts = useMemo(() => statusCounts(profile.games), [profile.games]);
   const fallback = firstTab(counts);
   const f = parsePublicFilters(sp, fallback);
   const set = (next: PublicFilters) => setSp(serializePublicFilters(next, fallback), { replace: true });
   const patch = (p: Partial<PublicFilters>) => set({ ...f, ...p });
-
-  const { tab, q, sort } = f;
-  const tagKey = f.tags.join("\n");
-  const inTab = useMemo(() => inPublicTab(profile.games, { tab, q }), [profile.games, tab, q]);
-  const list = useMemo(
-    () => filterPublic(profile.games, { tab, q, sort, tags: tagKey ? tagKey.split("\n") : [] }),
-    [profile.games, tab, q, sort, tagKey],
-  );
-  const tags = useMemo(() => tagFacets(inTab), [inTab]);
-  const [tagsOpen, setTagsOpen] = useState(f.tags.length > 0);
-  const toggleTag = (t: string) => patch({ tags: f.tags.includes(t) ? f.tags.filter((x) => x !== t) : [...f.tags, t] });
 
   const summary = [
     plural(counts.all, "jogo", "jogos"),
@@ -116,13 +125,13 @@ function PublicLibrary({ profile }: { profile: PublicProfile }) {
         </p>
       </div>
 
-      <div role="group" aria-label="Listas" className={styles.tabs}>
+      <div role="group" aria-label="Status e listas" className={styles.tabs}>
         {PUBLIC_TABS.filter((t) => t === "all" || counts[t] > 0).map((t) => (
           <button
             key={t}
             type="button"
             className="pill"
-            aria-pressed={f.tab === t}
+            aria-pressed={!showLists && f.tab === t}
             onClick={() => patch({ tab: t, sort: defaultPublicSort(t) })}
           >
             {t !== "all" && <span className={styles.dot} style={{ background: STATUS_DOT[t] }} aria-hidden="true" />}
@@ -130,7 +139,64 @@ function PublicLibrary({ profile }: { profile: PublicProfile }) {
             <span className={styles.count}>{counts[t]}</span>
           </button>
         ))}
+        {profile.lists.length > 0 && (
+          <button
+            type="button"
+            className="pill"
+            aria-pressed={showLists}
+            onClick={() => setSp({ ver: SHOW_LISTS }, { replace: true })}
+          >
+            <Icon name="lists" size={14} />
+            Listas
+            <span className={styles.count}>{profile.lists.length}</span>
+          </button>
+        )}
       </div>
+
+      {showLists ? <PublicLists profile={profile} /> : <PublicGames profile={profile} />}
+    </main>
+  );
+}
+
+function PublicLists({ profile }: { profile: PublicProfile }) {
+  const byId = useMemo(() => new Map(profile.games.map((g) => [g.id, g])), [profile.games]);
+  return (
+    <div className={styles.lists}>
+      {profile.lists.map((l) => (
+        <ListCard
+          key={l.id}
+          to={`/${profile.username}/listas/${l.id}`}
+          name={l.name}
+          description={l.description}
+          ranked={l.ranked}
+          games={resolveGames(l.game_ids, byId)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PublicGames({ profile }: { profile: PublicProfile }) {
+  const [sp, setSp] = useSearchParams();
+  const counts = useMemo(() => statusCounts(profile.games), [profile.games]);
+  const fallback = firstTab(counts);
+  const f = parsePublicFilters(sp, fallback);
+  const set = (next: PublicFilters) => setSp(serializePublicFilters(next, fallback), { replace: true });
+  const patch = (p: Partial<PublicFilters>) => set({ ...f, ...p });
+
+  const { tab, q, sort } = f;
+  const tagKey = f.tags.join("\n");
+  const inTab = useMemo(() => inPublicTab(profile.games, { tab, q }), [profile.games, tab, q]);
+  const list = useMemo(
+    () => filterPublic(profile.games, { tab, q, sort, tags: tagKey ? tagKey.split("\n") : [] }),
+    [profile.games, tab, q, sort, tagKey],
+  );
+  const tags = useMemo(() => tagFacets(inTab), [inTab]);
+  const [tagsOpen, setTagsOpen] = useState(f.tags.length > 0);
+  const toggleTag = (t: string) => patch({ tags: f.tags.includes(t) ? f.tags.filter((x) => x !== t) : [...f.tags, t] });
+
+  return (
+    <>
 
       <div className={styles.toolbar}>
         <div className={styles.search}>
@@ -210,7 +276,7 @@ function PublicLibrary({ profile }: { profile: PublicProfile }) {
       ) : (
         <div className="notice">Nenhum jogo com esse filtro.</div>
       )}
-    </main>
+    </>
   );
 }
 
@@ -218,7 +284,7 @@ function tabLabel(t: PublicTab): string {
   return t === "all" ? "Todos" : STATUS[t];
 }
 
-function PublicCard({ game: g, showStatus }: { game: PublicGameCard; showStatus: boolean }) {
+export function PublicCard({ game: g, showStatus, rank }: { game: PublicGameCard; showStatus: boolean; rank?: number }) {
   const played = g.status === "done" || g.status === "dropped";
   const timeLabel = played
     ? g.played_hours
@@ -241,6 +307,11 @@ function PublicCard({ game: g, showStatus }: { game: PublicGameCard; showStatus:
           rightColor: mcColor(g.metacritic_score),
         }}
       />
+      {rank !== undefined && (
+        <span className={styles.rank} aria-label={`Posição ${rank}`}>
+          #{rank}
+        </span>
+      )}
       <span className={styles.cardName}>
         {showStatus && <span className={styles.dot} style={{ background: STATUS_DOT[g.status] }} aria-hidden="true" />}
         <span className={styles.cardText} title={g.name}>

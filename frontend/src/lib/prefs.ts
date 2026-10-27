@@ -13,15 +13,19 @@ export interface CardPrefs {
   auto: boolean;
 }
 
+/** Grade de capas ou linhas (vale para a biblioteca e para as listas). */
+export type ViewMode = "grid" | "list";
+
 export interface Prefs {
   accent: string;
   coverSize: number;
   card: CardPrefs;
+  view: ViewMode;
 }
 
 const KEY = "gamerhub.prefs";
 const DEFAULT_CARD: CardPrefs = { platform: true, devices: true, accounts: true, score: true, auto: true };
-export const DEFAULT_PREFS: Prefs = { accent: ACCENTS[0], coverSize: 150, card: DEFAULT_CARD };
+export const DEFAULT_PREFS: Prefs = { accent: ACCENTS[0], coverSize: 150, card: DEFAULT_CARD, view: "grid" };
 const EVENT = "gamerhub:prefs";
 
 /** Valida o que veio do localStorage; campo ausente ou inválido volta ao padrão. */
@@ -42,6 +46,7 @@ export function parsePrefs(raw: unknown): Prefs {
       score: bool(card.score, DEFAULT_CARD.score),
       auto: bool(card.auto, DEFAULT_CARD.auto),
     },
+    view: p.view === "list" ? "list" : "grid",
   };
 }
 

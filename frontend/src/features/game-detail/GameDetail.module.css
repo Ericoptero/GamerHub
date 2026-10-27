@@ -57,6 +57,15 @@
   align-items: center;
   gap: 6px;
   text-decoration: none;
+  max-width: 100%;
+}
+
+/* O nome de uma lista pode ser comprido. */
+.backText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .heroRow {
@@ -683,6 +692,25 @@
 .deviceKind {
   color: var(--muted);
   font-size: 12px;
+}
+
+/* Uma das suas listas, no card "Listas". */
+.listLink {
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.listLink:hover {
+  border-color: var(--border-strong);
+}
+
+.listLink .deviceText {
+  min-width: 0;
+}
+
+.listLink .deviceName {
+  overflow-wrap: anywhere;
 }
 
 .owned {

@@ -10,7 +10,7 @@ import { STATUS1, STATUS_ORDER } from "../../lib/constants";
 import styles from "./IntegrationsPage.module.css";
 
 const MODES: { value: ImportMode; label: string; help: string }[] = [
-  { value: "novos", label: "Só novos", help: "Ignora jogos que já existem (mesmo nome, plataforma e lista)." },
+  { value: "novos", label: "Só novos", help: "Ignora jogos que já existem (mesmo nome, plataforma e status)." },
   { value: "atualizar", label: "Atualizar", help: "Atualiza os existentes com os campos preenchidos e cria os que faltam." },
   { value: "substituir", label: "Substituir tudo", help: "Apaga a biblioteca e importa do zero. Um backup é feito antes." },
 ];
@@ -196,7 +196,7 @@ function SheetImport() {
     <div className={styles.importBlock}>
       <h3 className={styles.h3}>Planilha (XLSX ou CSV)</h3>
       <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-        Cada aba vira uma lista (o nome da aba sugere o status: “Lista de espera”, “Finalizados”…). Você confere qual coluna
+        Cada aba vira um status (o nome da aba sugere qual: “Lista de espera”, “Finalizados”…). Você confere qual coluna
         é qual, simula e só então importa.
       </p>
       <div className="row" style={{ alignItems: "flex-end" }}>
@@ -225,7 +225,7 @@ function SheetImport() {
                     Importar esta aba
                   </label>
                   <label className="field" style={{ flex: "0 1 240px" }}>
-                    Lista quando a linha não diz
+                    Status quando a linha não diz
                     <select
                       className="select"
                       value={choice.status_override ?? ""}
@@ -329,7 +329,7 @@ function SheetImport() {
                   <th scope="col">Ação</th>
                   <th scope="col">Nome</th>
                   <th scope="col">Plataforma</th>
-                  <th scope="col">Lista</th>
+                  <th scope="col">Status</th>
                   <th scope="col">Prioridade</th>
                   <th scope="col">HLTB</th>
                   <th scope="col">Jogado</th>

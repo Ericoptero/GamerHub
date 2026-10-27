@@ -299,6 +299,42 @@
   border-radius: 8px;
 }
 
+/* Posição numa lista ranqueada, no canto da capa (o esquerdo é o da plataforma na capa gerada). */
+.rank {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 30px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: rgba(8, 11, 17, 0.82);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 26px;
+  text-align: center;
+}
+
+/* Oculto dentro de uma lista: continua lá, mas apagado. */
+.dim {
+  opacity: 0.55;
+}
+
+.hiddenTag {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  line-height: 16px;
+}
+
 /* Ocultar/mostrar: aparece no hover ou no foco; em tela de toque fica sempre visível. */
 .hideBtn {
   position: absolute;
@@ -392,6 +428,21 @@
   display: flex;
   gap: 12px;
   margin-left: auto;
+}
+
+/* Grade/lista com a mesma altura dos botões ao lado. */
+.viewSeg {
+  flex-wrap: nowrap;
+  padding: 2px;
+  gap: 2px;
+  align-self: center;
+}
+
+.viewSeg button {
+  height: 38px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
 }
 
 .displayBtn {

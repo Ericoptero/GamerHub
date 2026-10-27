@@ -13,6 +13,8 @@ from app.models import (
     Device,
     ExternalLink,
     Game,
+    GameList,
+    GameListItem,
     Genre,
     LibraryAccount,
     LibraryItem,
@@ -67,6 +69,8 @@ def export_json(db: Session, user_id: int) -> dict:
     """
     games = db.scalars(select(Game).where(Game.user_id == user_id).order_by(Game.import_order, Game.id)).all()
     owned = _ownerships(db, user_id)
+    # As listas apontam para os jogos pela posição em "games": os ids mudam na restauração.
+    index = {g.id: i for i, g in enumerate(games)}
     return {
         "version": EXPORT_VERSION,
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -101,6 +105,17 @@ def export_json(db: Session, user_id: int) -> dict:
             }
             for g in games
         ],
+        "lists": [
+            {
+                "name": lst.name,
+                "description": lst.description,
+                "ranked": lst.ranked,
+                "public": lst.public,
+                "created_at": _jsonable(lst.created_at),
+                "games": [index[i.game_id] for i in lst.items if i.game_id in index],
+            }
+            for lst in db.scalars(select(GameList).where(GameList.user_id == user_id).order_by(GameList.id))
+        ],
     }
 
 
@@ -122,7 +137,7 @@ def restore_json(db: Session, user_id: int, data: dict) -> dict:
     if data.get("version") != EXPORT_VERSION:
         raise ValueError(f"versão de export não suportada: {data.get('version')!r}")
     make_backup(reason="antes-de-restaurar")
-    for model in (Game, Device):
+    for model in (GameList, Game, Device):
         db.execute(delete(model).where(model.user_id == user_id))
     db.flush()
 
@@ -175,8 +190,29 @@ def restore_json(db: Session, user_id: int, data: dict) -> dict:
         restored.append((game, raw.get("ownerships") or []))
     db.flush()
     _relink(db, user_id, restored)
+    _restore_lists(db, user_id, data.get("lists") or [], [game for game, _ in restored])
     db.commit()
     return {"games": len(data.get("games", [])), "devices": len(data.get("devices", []))}
+
+
+def _restore_lists(db: Session, user_id: int, lists: list[dict], games: list[Game]) -> None:
+    """Exports antigos não têm "lists": a biblioteca volta sem listas."""
+    for raw in lists:
+        lst = GameList(
+            user_id=user_id,
+            name=raw["name"],
+            description=raw.get("description"),
+            ranked=bool(raw.get("ranked")),
+            public=raw.get("public", True) is not False,
+        )
+        if created := _parse_dt(raw.get("created_at")):
+            lst.created_at = created
+        seen: set[int] = set()
+        for i in raw.get("games", []):
+            if isinstance(i, int) and 0 <= i < len(games) and i not in seen:
+                seen.add(i)
+                lst.items.append(GameListItem(game_id=games[i].id, position=len(seen) - 1))
+        db.add(lst)
 
 
 def _relink(db: Session, user_id: int, restored: list[tuple[Game, list[dict]]]) -> None:

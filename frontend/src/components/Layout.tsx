@@ -6,12 +6,13 @@ import { UNAUTHORIZED_EVENT } from "../api/client";
 import { keys, useLogout, useMe } from "../api/queries";
 import type { User } from "../api/types";
 import { ChangePasswordDialog } from "../features/auth/ChangePasswordDialog";
+import { openedFromList } from "../features/library/returnTo";
 import { Icon } from "./Icon";
 import styles from "./Layout.module.css";
 import { ErrorState, LoadingState } from "./NotFound";
 
 export function Layout() {
-  const { pathname, search } = useLocation();
+  const { pathname, search, state } = useLocation();
   const qc = useQueryClient();
   const me = useMe();
 
@@ -28,7 +29,10 @@ export function Layout() {
     return <Navigate to="/entrar" replace state={{ from: pathname + search }} />;
   }
 
-  const libActive = pathname.startsWith("/biblioteca") || pathname.startsWith("/jogos");
+  // Um jogo aberto de uma lista acende "Listas"; aberto de outro lugar, "Biblioteca".
+  const fromList = pathname.startsWith("/jogos") && !!openedFromList(state);
+  const listsActive = pathname.startsWith("/listas") || fromList;
+  const libActive = pathname.startsWith("/biblioteca") || (pathname.startsWith("/jogos") && !fromList);
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
@@ -46,8 +50,19 @@ export function Layout() {
           >
             Biblioteca
           </Link>
+          <Link
+            to="/listas"
+            aria-label="Listas"
+            className={`${styles.navItem} ${listsActive ? styles.navOn : ""}`}
+            aria-current={listsActive ? "page" : undefined}
+          >
+            {/* No celular vira só o ícone, como Configurações. */}
+            <Icon name="lists" className={styles.navIcon} />
+            <span className={styles.navText}>Listas</span>
+          </Link>
           <NavLink to="/consoles" className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navOn : ""}`}>
-            Meus consoles
+            <span className={styles.navLong}>Meus consoles</span>
+            <span className={styles.navShort}>Consoles</span>
           </NavLink>
           <NavLink to="/integracoes" className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navOn : ""}`}>
             Integrações

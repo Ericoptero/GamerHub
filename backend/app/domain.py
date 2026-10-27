@@ -38,6 +38,7 @@ RESERVED_USERNAMES = frozenset(
         "entrar",
         "biblioteca",
         "jogos",
+        "listas",
         "adicionar",
         "consoles",
         "integracoes",

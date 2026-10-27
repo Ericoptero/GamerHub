@@ -29,7 +29,7 @@ export const STATUS_DOT: Record<Status, string> = {
   owned: "#7FD1C7",
 };
 
-/** O que cada lista quer dizer, para o seletor de lista da página do jogo. */
+/** O que cada status quer dizer, para o seletor de status da página do jogo. */
 export const STATUS_HINT: Record<Status, string> = {
   backlog: "Quero jogar: o jogo entra na fila, com prioridade.",
   playing: "Estou jogando agora.",

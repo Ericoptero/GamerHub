@@ -1,0 +1,414 @@
+/* ---------- tela de listas ---------- */
+
+.pageHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+}
+
+.listCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: inherit;
+  text-decoration: none;
+}
+
+.listCard:hover {
+  border-color: var(--border-strong);
+}
+
+.listCard:hover .listName {
+  color: #fff;
+}
+
+/* As capas sobrepostas, como uma pilha aberta. */
+.mosaic {
+  display: flex;
+  align-items: flex-end;
+  height: 118px;
+  padding-left: 2px;
+}
+
+.mosaicCover {
+  position: relative;
+  flex: none;
+  width: 76px;
+  margin-left: -34px;
+}
+
+.mosaicCover:first-child {
+  margin-left: 0;
+}
+
+.mosaicCover > span {
+  box-shadow:
+    0 0 0 2px var(--bg-card),
+    0 6px 14px rgba(0, 0, 0, 0.5);
+}
+
+.mosaicEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--border-input);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.listName {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.listMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.badge {
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  color: var(--text-4);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  line-height: 18px;
+  text-transform: uppercase;
+}
+
+.listDesc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--text-4);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* ---------- barra de progresso ---------- */
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-inset);
+  overflow: hidden;
+}
+
+.bar > span {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  color: var(--text-4);
+  font-size: 13px;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend strong {
+  color: var(--text);
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.legendLeft {
+  background: var(--bg-inset);
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
+}
+
+.legendHours {
+  color: var(--muted);
+}
+
+/* ---------- uma lista ---------- */
+
+.back {
+  align-self: flex-start;
+  margin: -8px 0 -8px -8px;
+}
+
+.detailTitle {
+  overflow-wrap: anywhere;
+}
+
+.description {
+  max-width: 72ch;
+  white-space: pre-line;
+}
+
+.progressCard {
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.progressHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.pct {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--st-done);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ---------- organizar ---------- */
+
+.organize {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.orgRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 6px 8px 6px 4px;
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+}
+
+.orgRow:last-child {
+  border-bottom: 0;
+}
+
+.orgRow:hover {
+  background: rgba(28, 36, 51, 0.45);
+}
+
+.dragging {
+  opacity: 0.4;
+}
+
+.dropBefore {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.dropAfter {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.grip {
+  display: flex;
+  color: var(--muted);
+}
+
+.orgPos {
+  width: 28px;
+  flex: none;
+  text-align: right;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-4);
+}
+
+.orgCover {
+  width: 34px;
+  flex: none;
+}
+
+.orgName {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.orgTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.orgMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.orgDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.orgActions {
+  display: flex;
+  flex: none;
+}
+
+.orgActions :global(.btn-icon):disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ---------- adicionar jogos ---------- */
+
+.addSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.addCandidate {
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-input);
+}
+
+.addRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 10px;
+}
+
+.addSection > .addRow {
+  border-radius: 10px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-input);
+}
+
+.addCover {
+  width: 32px;
+  flex: none;
+}
+
+.addThumb {
+  width: 32px;
+  height: 48px;
+  font-size: 14px;
+}
+
+.addInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.addName {
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.addMeta {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.newGame {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: end;
+  gap: 10px;
+  padding: 4px 10px 12px;
+}
+
+@media (max-width: 640px) {
+  .orgRow {
+    gap: 8px;
+    cursor: default;
+  }
+
+  .grip {
+    display: none;
+  }
+
+  .orgPos {
+    width: 22px;
+    font-size: 16px;
+  }
+
+  .pageHead :global(.row) {
+    width: 100%;
+  }
+}
