@@ -2,10 +2,19 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { errorMessage } from "../../api/client";
-import { useCreateGame, useDevices, useExternalSearch, useGenres, useMeta, usePlatforms } from "../../api/queries";
-import type { Candidate, Device, Priority, SearchProvider, Status } from "../../api/types";
+import {
+  useCreateGame,
+  useCreateGames,
+  useDevices,
+  useExternalSearch,
+  useGenres,
+  useMeta,
+  usePlatforms,
+} from "../../api/queries";
+import type { Access, Candidate, Device, Genre, Platform, Priority, SearchProvider, Status } from "../../api/types";
+import { Icon } from "../../components/Icon";
 import { useToast } from "../../components/Toast";
-import { PRIORITIES, PRIORITY_LABEL, STATUS1, STATUS_ORDER } from "../../lib/constants";
+import { ACCESS_LABEL, ACCESS_ORDER, PRIORITIES, PRIORITY_LABEL, STATUS1, STATUS_ORDER } from "../../lib/constants";
 import { initials } from "../../lib/cover";
 import { parseNum } from "../../lib/format";
 import { summarizePlatforms } from "../../lib/platforms";
@@ -38,6 +47,7 @@ export function AddGamePage() {
         <h1 className="page-title">Adicionar jogo</h1>
         <p className="lead">
           Busque numa integração para trazer capa, descrição, imagens, trailer, Metacritic e HLTB, ou cadastre à mão.
+          Na busca dá para selecionar vários jogos e adicionar todos de uma vez.
         </p>
       </div>
       <div role="tablist" aria-label="Forma de adicionar" className="seg">
@@ -55,12 +65,27 @@ export function AddGamePage() {
 
 // ---------- busca na integração ----------
 
+/** Um resultado escolhido e como ele entra na biblioteca (os selects guardam ids em texto). */
+interface Picked {
+  candidate: Candidate;
+  platform: string;
+  status: Status;
+  priority: Priority | "";
+  access: Access;
+  genre: string;
+}
+
+const keyOf = (c: Candidate) => `${c.provider}-${c.external_id}`;
+
+/** Padrão de quem entra pela busca: na biblioteca, prioridade baixa, e você tem o jogo. */
+const PICK_DEFAULTS = { status: "owned", priority: "Baixa", access: "owned" } as const;
+
 function IntegrationSearch({ onManual }: { onManual: () => void }) {
   const meta = useMeta();
   const platforms = usePlatforms();
   const genres = useGenres();
   const devices = useDevices();
-  const create = useCreateGame();
+  const create = useCreateGames();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -72,18 +97,25 @@ function IntegrationSearch({ onManual }: { onManual: () => void }) {
   const [q, setQ] = useState("");
   const debounced = useDebounced(q.trim(), 400);
   const search = useExternalSearch(activeSource ?? "igdb", activeSource ? debounced : "", platformFilter ? Number(platformFilter) : null);
-  const [picked, setPicked] = useState<Candidate | null>(null);
-  const [cfg, setCfg] = useState({ platform: "", status: "backlog" as Status, priority: "Media" as Priority | "", genre: "" });
+  // Na ordem em que foram escolhidos. Trocar a busca não limpa: dá para juntar jogos de buscas diferentes.
+  const [selected, setSelected] = useState<Picked[]>([]);
 
   const allPlatforms = platforms.data ?? [];
+  const chosen = new Set(selected.map((p) => keyOf(p.candidate)));
 
   // Ao escolher um resultado, sugere plataforma e gênero.
-  const choose = (c: Candidate | null) => {
-    setPicked(c);
-    if (!c) return;
-    const { platform, genre } = suggestFromCandidate(c, allPlatforms, genres.data ?? [], platformFilter);
-    setCfg((prev) => ({ ...prev, platform, genre }));
+  const toggle = (c: Candidate) => {
+    const key = keyOf(c);
+    if (chosen.has(key)) {
+      setSelected((prev) => prev.filter((p) => keyOf(p.candidate) !== key));
+      return;
+    }
+    const suggested = suggestFromCandidate(c, allPlatforms, genres.data ?? [], platformFilter);
+    setSelected((prev) => [...prev, { candidate: c, ...PICK_DEFAULTS, ...suggested }]);
   };
+  const change = (key: string, patch: Partial<Picked>) =>
+    setSelected((prev) => prev.map((p) => (keyOf(p.candidate) === key ? { ...p, ...patch } : p)));
+  const changeAll = (patch: Partial<Picked>) => setSelected((prev) => prev.map((p) => ({ ...p, ...patch })));
 
   if (meta.isPending) return <p className="muted">Carregando…</p>;
 
@@ -103,21 +135,32 @@ function IntegrationSearch({ onManual }: { onManual: () => void }) {
   }
 
   const results = search.data ?? [];
+  const n = selected.length;
+  const ready = n > 0 && selected.every((p) => p.platform);
   const submit = () => {
-    if (!picked || !cfg.platform) return;
+    if (!ready) return;
     create.mutate(
+      selected.map((p) => ({
+        name: p.candidate.name,
+        platform_id: Number(p.platform),
+        status: p.status,
+        priority: p.priority || null,
+        access: p.access,
+        genre_id: p.genre ? Number(p.genre) : null,
+        link: { provider: p.candidate.provider as SearchProvider, external_id: p.candidate.external_id },
+      })),
       {
-        name: picked.name,
-        platform_id: Number(cfg.platform),
-        status: cfg.status,
-        priority: cfg.priority || null,
-        genre_id: cfg.genre ? Number(cfg.genre) : null,
-        link: { provider: picked.provider as SearchProvider, external_id: picked.external_id },
-      },
-      {
-        onSuccess: (g) => {
-          toast.show(`${g.name} entrou na biblioteca. Buscando os dados nas integrações…`, "ok");
-          navigate(`/jogos/${g.id}`);
+        onSuccess: (games) => {
+          if (games.length === 1) {
+            toast.show(`${games[0].name} entrou na biblioteca. Buscando os dados nas integrações…`, "ok");
+            navigate(`/jogos/${games[0].id}`);
+            return;
+          }
+          toast.show(`${games.length} jogos entraram na biblioteca. Buscando os dados nas integrações…`, "ok", {
+            label: "Ver na biblioteca",
+            onClick: () => navigate("/biblioteca?lista=todos"),
+          });
+          setSelected([]);
         },
         onError: (e) => toast.error(`Não consegui adicionar: ${errorMessage(e)}`),
       },
@@ -125,169 +168,298 @@ function IntegrationSearch({ onManual }: { onManual: () => void }) {
   };
 
   return (
-    <section aria-label="Buscar na integração" className="card" style={{ gap: 16 }}>
-      <div className={styles.searchRow}>
-        <label className="field" style={{ flex: "0 1 160px" }}>
-          Fonte
-          <select
-            className="select"
-            value={activeSource ?? ""}
-            onChange={(e) => {
-              setSource(e.target.value as SearchProvider);
-              setPicked(null);
-            }}
-          >
-            {SOURCES.map((s) => (
-              <option key={s.value} value={s.value} disabled={!providers?.[s.value]}>
-                {s.label}
-                {providers?.[s.value] ? "" : " (sem chave)"}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field" style={{ flex: "0 1 200px" }}>
-          Plataforma (opcional)
-          <select className="select" value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)}>
-            <option value="">Qualquer</option>
-            {allPlatforms.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field" style={{ flex: "1 1 260px" }}>
-          Nome do jogo
-          <input
-            type="search"
-            className="input"
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPicked(null);
-            }}
-            placeholder="Ex.: Hollow Knight"
-            autoFocus
-          />
-        </label>
-      </div>
-
-      {debounced.length >= 2 && (
-        <div className={styles.results} aria-live="polite">
-          <span className="eyebrow">
-            {search.isFetching ? "Buscando…" : `Resultados em ${SOURCES.find((s) => s.value === activeSource)?.label}`}
-          </span>
-          {search.isError && <p className="error-text">{errorMessage(search.error)}</p>}
-          {!search.isFetching && !search.isError && results.length === 0 && (
-            <p className="muted" style={{ margin: 0 }}>
-              Nada encontrado. Tente outro nome, a outra fonte, ou{" "}
-              <button type="button" className="btn-link btn" style={{ height: "auto", padding: 0 }} onClick={onManual}>
-                cadastre à mão
-              </button>
-              .
-            </p>
-          )}
-          {results.map((c) => {
-            const on = picked?.external_id === c.external_id && picked.provider === c.provider;
-            return (
-              <button
-                key={`${c.provider}-${c.external_id}`}
-                type="button"
-                className={styles.result}
-                aria-pressed={on}
-                onClick={() => choose(on ? null : c)}
-              >
-                {c.cover_thumb ? (
-                  <img className={styles.thumb} src={c.cover_thumb} alt="" loading="lazy" />
-                ) : (
-                  <span className={styles.thumb} aria-hidden="true">
-                    {initials(c.name)}
-                  </span>
-                )}
-                <span className={styles.resultInfo}>
-                  <span className={styles.resultName}>
-                    {c.name}
-                    {c.year ? <span className="muted"> ({c.year})</span> : null}
-                  </span>
-                  <span className={styles.resultMeta}>{summarizePlatforms(c.platforms)}</span>
-                  {c.in_library.length > 0 && <span className={styles.owned}>Já na biblioteca</span>}
-                </span>
-                <span className={styles.pickLabel}>{on ? "Selecionado" : "Selecionar"}</span>
-              </button>
-            );
-          })}
+    <>
+      <section aria-label="Buscar na integração" className="card" style={{ gap: 16 }}>
+        <div className={styles.searchRow}>
+          <label className="field" style={{ flex: "0 1 160px" }}>
+            Fonte
+            <select className="select" value={activeSource ?? ""} onChange={(e) => setSource(e.target.value as SearchProvider)}>
+              {SOURCES.map((s) => (
+                <option key={s.value} value={s.value} disabled={!providers?.[s.value]}>
+                  {s.label}
+                  {providers?.[s.value] ? "" : " (sem chave)"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field" style={{ flex: "0 1 200px" }}>
+            Plataforma (opcional)
+            <select className="select" value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)}>
+              <option value="">Qualquer</option>
+              {allPlatforms.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field" style={{ flex: "1 1 260px" }}>
+            Nome do jogo
+            <input
+              type="search"
+              className="input"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Ex.: Hollow Knight"
+              autoFocus
+            />
+          </label>
         </div>
+
+        {debounced.length >= 2 && (
+          <div className={styles.results} aria-live="polite">
+            <span className="eyebrow">
+              {search.isFetching ? "Buscando…" : `Resultados em ${SOURCES.find((s) => s.value === activeSource)?.label}`}
+            </span>
+            {search.isError && <p className="error-text">{errorMessage(search.error)}</p>}
+            {!search.isFetching && !search.isError && results.length === 0 && (
+              <p className="muted" style={{ margin: 0 }}>
+                Nada encontrado. Tente outro nome, a outra fonte, ou{" "}
+                <button type="button" className="btn-link btn" style={{ height: "auto", padding: 0 }} onClick={onManual}>
+                  cadastre à mão
+                </button>
+                .
+              </p>
+            )}
+            {results.map((c) => {
+              const on = chosen.has(keyOf(c));
+              return (
+                <button key={keyOf(c)} type="button" className={styles.result} aria-pressed={on} onClick={() => toggle(c)}>
+                  <CandidateThumb candidate={c} />
+                  <span className={styles.resultInfo}>
+                    <span className={styles.resultName}>
+                      {c.name}
+                      {c.year ? <span className="muted"> ({c.year})</span> : null}
+                    </span>
+                    <span className={styles.resultMeta}>{summarizePlatforms(c.platforms)}</span>
+                    {c.in_library.length > 0 && <span className={styles.owned}>Já na biblioteca</span>}
+                  </span>
+                  <span className={styles.pickLabel}>
+                    {on ? (
+                      <>
+                        <Icon name="check" size={14} strokeWidth={3} /> Selecionado
+                      </>
+                    ) : (
+                      "Selecionar"
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {n > 0 && (
+        <section id="selecionados" aria-labelledby="h-selecionados" className="card" style={{ gap: 14 }}>
+          <div className={styles.selHead}>
+            <h2 id="h-selecionados" className="section-title">
+              Selecionados <span className="count">{n}</span>
+            </h2>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setSelected([])}>
+              Limpar seleção
+            </button>
+          </div>
+          {n > 1 && <ChangeAll onChange={changeAll} />}
+          <ul className={styles.picks}>
+            {selected.map((p) => (
+              <PickRow
+                key={keyOf(p.candidate)}
+                pick={p}
+                platforms={allPlatforms}
+                genres={genres.data ?? []}
+                devices={devices.data ?? []}
+                onChange={(patch) => change(keyOf(p.candidate), patch)}
+                onRemove={() => toggle(p.candidate)}
+              />
+            ))}
+          </ul>
+        </section>
       )}
 
-      {picked && (
-        <>
-          <div className={`field-grid ${styles.config}`}>
-            <label className="field">
-              Plataforma
-              <select className="select" value={cfg.platform} onChange={(e) => setCfg({ ...cfg, platform: e.target.value })}>
-                {allPlatforms.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              Status
-              <select className="select" value={cfg.status} onChange={(e) => setCfg({ ...cfg, status: e.target.value as Status })}>
-                {LIST_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS1[s]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              Prioridade
-              <select className="select" value={cfg.priority} onChange={(e) => setCfg({ ...cfg, priority: e.target.value as Priority | "" })}>
-                <option value="">—</option>
-                {PRIORITIES.map((p) => (
-                  <option key={p} value={p}>
-                    {PRIORITY_LABEL[p]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              Gênero
-              <select className="select" value={cfg.genre} onChange={(e) => setCfg({ ...cfg, genre: e.target.value })}>
-                <option value="">Sem gênero</option>
-                {(genres.data ?? []).map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <p style={{ margin: 0, color: "var(--text-3)", fontSize: 13 }}>
-            Jogável em: {availability(cfg.platform ? Number(cfg.platform) : null, devices.data ?? [])}
-          </p>
-          {picked.in_library.length > 0 && (
-            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+      {n > 0 && (
+        <div className={styles.confirmBar}>
+          <a href="#selecionados" className={styles.confirmCount}>
+            {n} {n === 1 ? "selecionado" : "selecionados"}
+          </a>
+          <button type="button" className="btn btn-primary" onClick={submit} disabled={create.isPending || !ready}>
+            {create.isPending ? "Adicionando…" : n === 1 ? "Adicionar à biblioteca" : `Adicionar ${n} jogos`}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function CandidateThumb({ candidate: c }: { candidate: Candidate }) {
+  return c.cover_thumb ? (
+    <img className={styles.thumb} src={c.cover_thumb} alt="" loading="lazy" />
+  ) : (
+    <span className={styles.thumb} aria-hidden="true">
+      {initials(c.name)}
+    </span>
+  );
+}
+
+/** Status, prioridade e posse para todos os selecionados de uma vez (o select volta ao rótulo). */
+function ChangeAll({ onChange }: { onChange: (patch: Partial<Picked>) => void }) {
+  return (
+    <div className={styles.changeAll} role="group" aria-label="Mudar todos os selecionados">
+      <span className="eyebrow">Para todos</span>
+      <select
+        className="select"
+        aria-label="Status de todos"
+        value=""
+        onChange={(e) => onChange({ status: e.target.value as Status })}
+      >
+        <option value="" disabled>
+          Status…
+        </option>
+        {LIST_OPTIONS.map((s) => (
+          <option key={s} value={s}>
+            {STATUS1[s]}
+          </option>
+        ))}
+      </select>
+      <select
+        className="select"
+        aria-label="Prioridade de todos"
+        value=""
+        onChange={(e) => onChange({ priority: e.target.value === "none" ? "" : (e.target.value as Priority) })}
+      >
+        <option value="" disabled>
+          Prioridade…
+        </option>
+        {PRIORITIES.map((p) => (
+          <option key={p} value={p}>
+            {PRIORITY_LABEL[p]}
+          </option>
+        ))}
+        <option value="none">Nenhuma</option>
+      </select>
+      <select
+        className="select"
+        aria-label="Posse de todos"
+        value=""
+        onChange={(e) => onChange({ access: e.target.value as Access })}
+      >
+        <option value="" disabled>
+          Posse…
+        </option>
+        {ACCESS_ORDER.map((a) => (
+          <option key={a} value={a}>
+            {ACCESS_LABEL[a]}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function PickRow({
+  pick: p,
+  platforms,
+  genres,
+  devices,
+  onChange,
+  onRemove,
+}: {
+  pick: Picked;
+  platforms: Platform[];
+  genres: Genre[];
+  devices: Device[];
+  onChange: (patch: Partial<Picked>) => void;
+  onRemove: () => void;
+}) {
+  const c = p.candidate;
+  return (
+    <li className={styles.pick}>
+      <div className={styles.pickHead}>
+        <CandidateThumb candidate={c} />
+        <span className={styles.resultInfo}>
+          <span className={styles.resultName}>
+            {c.name}
+            {c.year ? <span className="muted"> ({c.year})</span> : null}
+          </span>
+          <span className={styles.resultMeta}>
+            Jogável em: {availability(p.platform ? Number(p.platform) : null, devices)}
+          </span>
+          {c.in_library.length > 0 && (
+            <span className={styles.already}>
               Você já tem esse jogo:{" "}
-              {picked.in_library.map((id, i) => (
+              {c.in_library.map((id, i) => (
                 <span key={id}>
                   {i > 0 && ", "}
                   <Link to={`/jogos/${id}`}>abrir</Link>
                 </span>
               ))}
               . Adicionar de novo cria outra entrada (útil para rejogar ou outra plataforma).
-            </p>
+            </span>
           )}
-          <div className="row-end">
-            <button type="button" className="btn btn-primary" onClick={submit} disabled={create.isPending || !cfg.platform}>
-              {create.isPending ? "Adicionando…" : "Adicionar à biblioteca"}
-            </button>
-          </div>
-        </>
-      )}
-    </section>
+        </span>
+        <button type="button" className="btn btn-icon" aria-label={`Tirar ${c.name} da seleção`} onClick={onRemove}>
+          <Icon name="close" />
+        </button>
+      </div>
+      <div className={styles.pickFields}>
+        <label className="field">
+          Plataforma
+          <select className="select" value={p.platform} onChange={(e) => onChange({ platform: e.target.value })}>
+            {platforms.map((pl) => (
+              <option key={pl.id} value={pl.id}>
+                {pl.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Status
+          <select className="select" value={p.status} onChange={(e) => onChange({ status: e.target.value as Status })}>
+            {LIST_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {STATUS1[s]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Prioridade
+          <select
+            className="select"
+            value={p.priority}
+            onChange={(e) => onChange({ priority: e.target.value as Priority | "" })}
+          >
+            <option value="">—</option>
+            {PRIORITIES.map((pr) => (
+              <option key={pr} value={pr}>
+                {PRIORITY_LABEL[pr]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Posse
+          <select className="select" value={p.access} onChange={(e) => onChange({ access: e.target.value as Access })}>
+            {ACCESS_ORDER.map((a) => (
+              <option key={a} value={a}>
+                {ACCESS_LABEL[a]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Gênero
+          <select className="select" value={p.genre} onChange={(e) => onChange({ genre: e.target.value })}>
+            <option value="">Sem gênero</option>
+            {genres.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    </li>
   );
 }
 
@@ -304,8 +476,10 @@ function ManualForm() {
     name: "",
     platform: "",
     genre: "",
-    status: "backlog" as Status,
-    priority: "Media" as Priority | "",
+    status: "owned" as Status,
+    priority: "Baixa" as Priority | "",
+    access: "owned" as Access,
+    release: "",
     hltb: "",
     mc: "",
     description: "",
@@ -333,6 +507,8 @@ function ManualForm() {
         genre_id: genre && genre !== "none" ? Number(genre) : null,
         status: f.status,
         priority: f.priority || null,
+        access: f.access,
+        release_date: f.release || null,
         hltb_main_hours: parseNum(f.hltb),
         metacritic_score: mc === null ? null : Math.round(mc),
         description: f.description.trim() || null,
@@ -399,6 +575,26 @@ function ManualForm() {
               </option>
             ))}
           </select>
+        </label>
+        <label className="field">
+          Posse
+          <select className="select" value={f.access} onChange={(e) => set("access", e.target.value)}>
+            {ACCESS_ORDER.map((a) => (
+              <option key={a} value={a}>
+                {ACCESS_LABEL[a]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Lançamento
+          <input
+            className="input"
+            type="date"
+            style={{ colorScheme: "dark" }}
+            value={f.release}
+            onChange={(e) => set("release", e.target.value)}
+          />
         </label>
         <label className="field">
           HLTB (horas)

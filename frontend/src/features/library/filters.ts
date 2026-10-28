@@ -1,7 +1,7 @@
 // Filtros e ordenação da biblioteca. Tudo vive na URL (dá para salvar nos favoritos e compartilhar)
 // e é puro: a página só lê os parâmetros, filtra e ordena aqui.
-import type { Account, Device, GameCard, Priority, Status } from "../../api/types";
-import { PRIO, PRIORITIES, STATUS_ORDER, STORE_LABEL } from "../../lib/constants";
+import type { Access, Account, Device, GameCard, Priority, Status } from "../../api/types";
+import { ACCESS_LABEL, ACCESS_ORDER, PRIO, PRIORITIES, STATUS_ORDER, STORE_LABEL } from "../../lib/constants";
 import { fold } from "../../lib/text";
 
 /** "hidden": os jogos ocultos, de qualquer status (nenhuma outra lista mostra oculto). */
@@ -80,6 +80,7 @@ export interface Filters {
   accounts: number[];
   tags: string[];
   priorities: Priority[];
+  access: Access[];
   company: string;
   ranges: Record<RangeKey, Range>;
   /** Nas faixas, manter os jogos que não têm o dado (sem Metacritic, sem HLTB…). */
@@ -111,6 +112,7 @@ export function emptyFilters(tab: Tab = "backlog"): Filters {
     accounts: [],
     tags: [],
     priorities: [],
+    access: [],
     company: "",
     ranges: Object.fromEntries(RANGE_KEYS.map((k) => [k, EMPTY_RANGE])) as Record<RangeKey, Range>,
     unknown: false,
@@ -158,6 +160,7 @@ export function parseFilters(sp: URLSearchParams): Filters {
     accounts: ids(sp.getAll("conta")),
     tags: sp.getAll("tag").filter(Boolean),
     priorities: sp.getAll("prio").filter((p): p is Priority => (PRIORITIES as string[]).includes(p)),
+    access: sp.getAll("posse").filter((a): a is Access => (ACCESS_ORDER as string[]).includes(a)),
     company: sp.get("empresa") ?? "",
     ranges: Object.fromEntries(RANGE_KEYS.map((k) => [k, parseRange(sp.get(RANGES[k].param))])) as Record<
       RangeKey,
@@ -183,6 +186,7 @@ export function serializeFilters(f: Filters): URLSearchParams {
   for (const a of f.accounts) sp.append("conta", String(a));
   for (const t of f.tags) sp.append("tag", t);
   for (const p of f.priorities) sp.append("prio", p);
+  for (const a of f.access) sp.append("posse", a);
   if (f.company) sp.set("empresa", f.company);
   for (const k of RANGE_KEYS) {
     const v = formatRange(f.ranges[k]);
@@ -229,6 +233,7 @@ export function matches(g: GameCard, f: Filters, devices: Device[]): boolean {
   if (!any(f.accounts, (a) => g.account_ids.includes(a))) return false;
   if (!any(f.tags, (t) => g.tags.includes(t))) return false;
   if (!any(f.priorities, (p) => p === g.priority)) return false;
+  if (!any(f.access, (a) => a === g.access)) return false;
   if (f.company) {
     const c = fold(f.company);
     if (!fold(g.developer ?? "").includes(c) && !fold(g.publisher ?? "").includes(c)) return false;
@@ -397,6 +402,13 @@ export function activeChips(
       id: `pr:${p}`,
       label: `Prioridade ${p === "Media" ? "Média" : p}`,
       remove: (g) => ({ ...g, priorities: without(g.priorities, p) }),
+    });
+  }
+  for (const a of f.access) {
+    chips.push({
+      id: `ac:${a}`,
+      label: `Posse: ${ACCESS_LABEL[a]}`,
+      remove: (g) => ({ ...g, access: without(g.access, a) }),
     });
   }
   if (f.company) chips.push({ id: "co", label: `Estúdio: ${f.company}`, remove: (g) => ({ ...g, company: "" }) });

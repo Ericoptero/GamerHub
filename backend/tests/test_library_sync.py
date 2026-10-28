@@ -161,6 +161,18 @@ async def test_reuses_spreadsheet_game_and_keeps_typed_hours(db, fake):
     assert [st.name for st in hk.stores] == ["Steam"]
 
 
+async def test_store_account_means_you_own_it(db, fake):
+    import_short_json(db, 1, [{"n": "Hollow Knight", "p": "PC", "st": "hype"}])
+    (hk,) = games_named(db, "Hollow Knight")
+    hk.access = "wishlist"
+    db.commit()
+    s = account(db, "steam", "S")
+    fake.steam.libraries = {"S": [g("367520", "Hollow Knight")]}
+    await sync_account(s)
+    (hk,) = games_named(db, "Hollow Knight")
+    assert (hk.status, hk.access) == ("hype", "owned")
+
+
 async def test_played_hours_follow_store_until_user_edits(db, fake):
     s = account(db, "steam", "S")
     fake.steam.libraries = {"S": [g("1", "Tunic", 60)]}
@@ -267,6 +279,7 @@ async def test_merge_games(db, fake):
     source.media.append(Media(kind="screenshot", url="https://x/2.jpg", provider="manual", position=1))
     source.links.append(ExternalLink(provider="rawg", external_id="3328", status="confirmed", candidates=[]))
     source.comments.append(Comment(body="zerar o DLC"))
+    target.access = "gamepass"
     db.commit()
     source_id = source.id
 
@@ -275,6 +288,7 @@ async def test_merge_games(db, fake):
     db.expire_all()
     assert db.get(Game, source_id) is None
     assert (merged.status, merged.priority, merged.user_score) == ("backlog", "Alta", 10)
+    assert merged.access == "owned"  # a origem você tem
     assert [c.body for c in merged.comments] == ["zerar o DLC"]
     assert sorted(m.url for m in merged.media) == ["https://x/1.jpg", "https://x/2.jpg"]
     assert sorted(lk.provider for lk in merged.links) == ["igdb", "rawg"]

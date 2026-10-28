@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
-import type { Account, Device, Priority } from "../../api/types";
-import { PRIORITIES, PRIORITY_LABEL } from "../../lib/constants";
+import type { Access, Account, Device, Priority } from "../../api/types";
+import { ACCESS_LABEL, ACCESS_ORDER, PRIORITIES, PRIORITY_LABEL } from "../../lib/constants";
 import { parseNum } from "../../lib/format";
 import { fold } from "../../lib/text";
 import styles from "./FilterPanel.module.css";
@@ -119,6 +119,12 @@ export function FilterPanel({ f, onChange, facets, devices, accounts }: Props) {
           options={PRIORITIES.map((p) => ({ key: p, label: PRIORITY_LABEL[p], count: -1 }))}
           selected={f.priorities}
           onToggle={(v: Priority) => set({ priorities: toggle(f.priorities, v) })}
+        />
+        <Pills
+          label="Posse"
+          options={ACCESS_ORDER.map((a) => ({ key: a, label: ACCESS_LABEL[a], count: -1 }))}
+          selected={f.access}
+          onToggle={(v: Access) => set({ access: toggle(f.access, v) })}
         />
         <label className="check">
           <input type="checkbox" checked={f.multi} onChange={(e) => set({ multi: e.target.checked })} /> Em 2 ou mais

@@ -13,6 +13,7 @@ export function game(p: Partial<GameCard> & Pick<GameCard, "name">): GameCard {
     genre: null,
     status: "backlog",
     priority: null,
+    access: "owned",
     hltb_main_hours: null,
     played_hours: null,
     user_score: null,

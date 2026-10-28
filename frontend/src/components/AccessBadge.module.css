@@ -1,0 +1,42 @@
+.badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(8, 11, 17, 0.82);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  line-height: 1;
+}
+
+.unreleased {
+  color: var(--st-hype);
+}
+
+.wishlist {
+  color: var(--text-2);
+}
+
+/* Verde do Xbox. */
+.gamepass {
+  background: #107c10;
+  color: #fff;
+}
+
+.inline {
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  box-shadow: none;
+  background: var(--bg-chip);
+}
+
+.inline.gamepass {
+  background: #107c10;
+}

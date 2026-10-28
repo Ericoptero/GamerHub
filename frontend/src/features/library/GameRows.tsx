@@ -2,14 +2,15 @@ import type { CSSProperties } from "react";
 import { Link } from "react-router";
 
 import type { Account, GameCard } from "../../api/types";
+import { AccessBadge } from "../../components/AccessBadge";
 import { GameCover } from "../../components/GameCover";
 import { Icon } from "../../components/Icon";
 import { STATUS1, STATUS_DOT, mcColor } from "../../lib/constants";
-import { hrs } from "../../lib/format";
+import { fmtDate, hrs } from "../../lib/format";
 import { metaLine, type CardDisplay } from "./cardInfo";
 import type { SortDir, SortKey } from "./filters";
 import styles from "./GameRows.module.css";
-import { OwnerChips, ownersOf, prioDot } from "./LibraryCard";
+import { OwnerChips, openLabel, ownersOf, prioDot } from "./LibraryCard";
 import cardStyles from "./LibraryPage.module.css";
 import { FROM_LIBRARY, type CardLinkState } from "./returnTo";
 
@@ -97,7 +98,7 @@ export function GameRows({
                 to={`/jogos/${g.id}`}
                 state={linkState}
                 className={styles.row}
-                aria-label={`Abrir ${g.name}`}
+                aria-label={openLabel(g)}
                 onClick={(e) => onOpen(g.id, e.currentTarget.getBoundingClientRect().top)}
               >
                 {ranks && <span className={styles.rankCell}>{ranks.get(g.id)}</span>}
@@ -110,8 +111,12 @@ export function GameRows({
                       <span className={cardStyles.prioDot} style={prioDot(g.priority)} aria-hidden="true" />
                     )}
                     <span className={styles.nameText}>{g.name}</span>
+                    <AccessBadge access={g.access} releaseDate={g.release_date} variant="inline" />
                     {dim && <span className={cardStyles.hiddenTag}>Oculto</span>}
                   </span>
+                  {g.status === "hype" && (
+                    <span className={styles.meta}>Lançamento: {g.release_date ? fmtDate(g.release_date) : "sem data"}</span>
+                  )}
                   {meta && (
                     <span className={styles.meta} title={meta}>
                       {meta}

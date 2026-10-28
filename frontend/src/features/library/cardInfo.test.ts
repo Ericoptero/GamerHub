@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Account } from "../../api/types";
 import { DEFAULT_PREFS, parsePrefs } from "../../lib/prefs";
-import { cardDisplay, devicesByPlatform, metaLine, sharedSummary } from "./cardInfo";
+import { cardDisplay, devicesByPlatform, metaLine, sharedSummary, timeLabel } from "./cardInfo";
 import { devices, game } from "./testing";
 
 const on = DEFAULT_PREFS.card;
@@ -14,6 +14,16 @@ const pcB = game({ name: "Portal 2", platform: "PC", account_ids: [2, 1] });
 const gba = game({ name: "Advance Wars", platform: "GBA" });
 
 describe("informações do card", () => {
+  it("embaixo da capa: data de lançamento no Hype, horas jogadas no que acabou, HLTB no resto", () => {
+    expect(timeLabel(game({ name: "Silksong", status: "hype", release_date: "2027-02-01", hltb_main_hours: 30 }))).toBe(
+      "01/02/2027",
+    );
+    expect(timeLabel(game({ name: "Silksong", status: "hype" }))).toBe("Sem data");
+    expect(timeLabel(game({ name: "Hades", status: "done", played_hours: 30.5 }))).toBe("30,5h jogadas");
+    expect(timeLabel(game({ name: "Celeste", hltb_main_hours: 8 }))).toBe("8h");
+    expect(timeLabel(game({ name: "Gwent" }))).toBe("HLTB —");
+  });
+
   it("agrupa os aparelhos por plataforma", () => {
     expect(devs.get(1)).toEqual(["PC", "Steam Deck"]);
     expect(devs.get(2)).toEqual(["Miyoo Mini Plus"]);

@@ -28,7 +28,7 @@ from app.services.catalog import CatalogCache
 EXPORT_VERSION = 1
 
 _GAME_FIELDS = (
-    "name", "status", "priority", "hidden", "hltb_main_hours", "hltb_extra_hours", "hltb_complete_hours",
+    "name", "status", "priority", "access", "hidden", "hltb_main_hours", "hltb_extra_hours", "hltb_complete_hours",
     "played_hours", "played_hours_source", "user_score", "review_text", "story_summary", "times_completed",
     "finished_at", "finished_label", "release_date", "description", "storyline", "cover_url", "background_url", "metacritic_score",
     "metacritic_user_score", "metacritic_url", "metacritic_source", "tags", "developer", "publisher", "origin",
@@ -175,6 +175,7 @@ def restore_json(db: Session, user_id: int, data: dict) -> dict:
         fields["tags"] = fields["tags"] or []
         fields["locked_fields"] = fields["locked_fields"] or []
         fields["hidden"] = bool(fields["hidden"])
+        fields["access"] = fields["access"] or "owned"  # backup de antes da posse
         game = Game(
             **fields, user_id=user_id, name_norm=normalize_title(raw["name"]), platform=cat.platform(raw["platform"])
         )

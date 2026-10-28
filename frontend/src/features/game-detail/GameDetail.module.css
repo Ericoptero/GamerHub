@@ -235,6 +235,12 @@
   color: var(--muted);
 }
 
+.releaseInput {
+  width: 170px;
+  height: 36px;
+  color-scheme: dark;
+}
+
 /* ---------- corpo ---------- */
 
 .body {

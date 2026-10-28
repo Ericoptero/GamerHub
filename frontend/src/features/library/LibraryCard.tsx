@@ -2,12 +2,12 @@ import type { CSSProperties } from "react";
 import { Link } from "react-router";
 
 import type { Account, GameCard, Priority } from "../../api/types";
+import { AccessBadge, accessText } from "../../components/AccessBadge";
 import { GameCover } from "../../components/GameCover";
 import { Icon } from "../../components/Icon";
 import { StoreMark } from "../../components/StoreMark";
 import { STORE_LABEL, mcColor } from "../../lib/constants";
-import { hrs } from "../../lib/format";
-import { metaLine, type CardDisplay } from "./cardInfo";
+import { metaLine, timeLabel, type CardDisplay } from "./cardInfo";
 import styles from "./LibraryPage.module.css";
 import { FROM_LIBRARY, type CardLinkState } from "./returnTo";
 
@@ -15,12 +15,6 @@ export function prioDot(p: Priority): CSSProperties {
   if (p === "Alta") return { background: "var(--prio-alta)" };
   if (p === "Media") return { background: "var(--prio-media)" };
   return { background: "transparent", boxShadow: "inset 0 0 0 1.5px var(--muted)" };
-}
-
-/** Horas jogadas para o que já acabou (finalizado/dropado); senão o tempo do HLTB. */
-export function timeLabel(g: GameCard): string {
-  if (g.status === "done" || g.status === "dropped") return g.played_hours ? `${hrs(g.played_hours)} jogadas` : "—";
-  return g.hltb_main_hours ? (hrs(g.hltb_main_hours) ?? "") : "HLTB —";
 }
 
 export const MAX_ACCOUNT_CHIPS = 2;
@@ -67,6 +61,10 @@ export function OwnerChips({ owners }: { owners: Account[] }) {
   );
 }
 
+/** "Abrir Hades" ou, com posse diferente de "Tenho", "Abrir Hades (Game Pass)": o selo é só visual. */
+export const openLabel = (g: GameCard) =>
+  g.access === "owned" ? `Abrir ${g.name}` : `Abrir ${g.name} (${accessText(g.access, g.release_date)})`;
+
 export const ownersOf = (g: GameCard, show: CardDisplay, accounts: Map<number, Account>) =>
   show.accounts ? g.account_ids.map((id) => accounts.get(id)).filter((a): a is Account => !!a) : [];
 
@@ -89,13 +87,14 @@ export function LibraryCard({
         to={`/jogos/${g.id}`}
         state={linkState}
         className={styles.card}
-        aria-label={`Abrir ${g.name}`}
+        aria-label={openLabel(g)}
         onClick={(e) => onOpen(g.id, e.currentTarget.getBoundingClientRect().top)}
       >
         <GameCover
           name={g.name}
           platform={g.platform}
           cover={g.cover}
+          badge={g.access !== "owned" && <AccessBadge access={g.access} releaseDate={g.release_date} />}
           footer={{
             left: timeLabel(g),
             right: g.metacritic_score !== null ? `MC ${g.metacritic_score}` : "MC —",

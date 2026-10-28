@@ -6,9 +6,19 @@ from sqlalchemy.orm import Session
 
 from app.auth.deps import current_user
 from app.db import get_db
-from app.enrichment.jobs import link_and_refresh
+from app.enrichment.jobs import link_and_refresh, link_and_refresh_many
 from app.models import Comment, Game, Media, User
-from app.schemas import CommentIn, CommentOut, GameCard, GameCreate, GameDetail, GamePatch, MediaIn, MergeIn
+from app.schemas import (
+    CommentIn,
+    CommentOut,
+    GameBatchIn,
+    GameCard,
+    GameCreate,
+    GameDetail,
+    GamePatch,
+    MediaIn,
+    MergeIn,
+)
 from app.services import games as svc
 from app.services.media_cache import cache_game_images
 
@@ -40,6 +50,21 @@ def create_game(
         background.add_task(cache_game_images, game.id)
     db.refresh(game)
     return svc.to_detail(db, game)
+
+
+@router.post("/games/batch", response_model=list[GameCard], status_code=201)
+def create_games(
+    data: GameBatchIn, background: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(current_user)
+):
+    games = svc.create_games(db, user.id, data.games)
+    links = [(g, item.link.provider, item.link.external_id) for g, item in zip(games, data.games) if item.link]
+    if links:
+        link_and_refresh_many(db, user.id, links)
+    for g, item in zip(games, data.games):
+        if not item.link and g.cover_url:
+            background.add_task(cache_game_images, g.id)
+    owned = svc.ownership_index(db, user.id)
+    return [svc.to_card(g, owned) for g in games]
 
 
 @router.patch("/games/{game_id}", response_model=GameDetail)

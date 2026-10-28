@@ -1,4 +1,4 @@
-import type { Priority, Status } from "../api/types";
+import type { Access, Priority, Status } from "../api/types";
 
 export const STATUS_ORDER: Status[] = ["backlog", "playing", "done", "dropped", "hype", "owned"];
 
@@ -44,6 +44,23 @@ export const PRIO: Record<Priority, number> = { Alta: 0, Media: 1, Baixa: 2 };
 export const PRIORITY_LABEL: Record<Priority, string> = { Alta: "Alta", Media: "Média", Baixa: "Baixa" };
 
 export const PRIORITIES: Priority[] = ["Alta", "Media", "Baixa"];
+
+export const ACCESS_ORDER: Access[] = ["owned", "unreleased", "wishlist", "gamepass"];
+
+export const ACCESS_LABEL: Record<Access, string> = {
+  owned: "Tenho",
+  unreleased: "Aguardando lançamento",
+  wishlist: "Ainda não comprei",
+  gamepass: "Game Pass",
+};
+
+/** O que cada posse quer dizer, para o seletor da página do jogo. */
+export const ACCESS_HINT: Record<Access, string> = {
+  owned: "O jogo é seu: comprado, de graça ou numa conta de loja. Sem ícone no card.",
+  unreleased: "Ainda não saiu: você está esperando o lançamento.",
+  wishlist: "Já saiu, mas você ainda não comprou.",
+  gamepass: "Você joga pela assinatura do Game Pass.",
+};
 
 export const KINDS = ["Console", "Portátil", "PC", "Emulador / retro", "Celular", "Outro"];
 

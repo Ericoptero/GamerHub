@@ -53,6 +53,15 @@ RESERVED_USERNAMES = frozenset(
 PRIORITIES = ("Alta", "Media", "Baixa")
 PRIORITY_LABELS = {"Alta": "Alta", "Media": "Média", "Baixa": "Baixa"}
 
+# Posse: se você tem o jogo, à parte do status (um jogo na fila pode ainda não ter sido comprado).
+ACCESS = ("owned", "unreleased", "wishlist", "gamepass")
+ACCESS_LABELS = {
+    "owned": "Tenho",
+    "unreleased": "Aguardando lançamento",
+    "wishlist": "Ainda não comprei",
+    "gamepass": "Game Pass",
+}
+
 DEVICE_KINDS = ("Console", "Portátil", "PC", "Emulador / retro", "Celular", "Outro")
 
 PROVIDERS = ("igdb", "rawg", "hltb", "metacritic")

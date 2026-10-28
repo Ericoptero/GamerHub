@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 Status = Literal["backlog", "playing", "done", "dropped", "hype", "owned"]
 Priority = Literal["Alta", "Media", "Baixa"]
+Access = Literal["owned", "unreleased", "wishlist", "gamepass"]
 ProviderName = Literal["igdb", "rawg", "hltb", "metacritic"]
 SearchProvider = Literal["igdb", "rawg"]
 StoreName = Literal["steam", "epic", "gog"]
@@ -108,6 +109,7 @@ class GameCard(Out):
     genre: str | None
     status: Status
     priority: Priority | None
+    access: Access = "owned"
     hltb_main_hours: float | None
     played_hours: float | None
     user_score: int | None
@@ -242,6 +244,7 @@ class GameCreate(BaseModel):
     genre_id: int | None = None
     status: Status = "backlog"
     priority: Priority | None = None
+    access: Access = "owned"
     hltb_main_hours: float | None = Field(default=None, ge=0)
     metacritic_score: int | None = Field(default=None, ge=0, le=100)
     release_date: date | None = None
@@ -253,6 +256,12 @@ class GameCreate(BaseModel):
     link: LinkRef | None = None
 
 
+class GameBatchIn(BaseModel):
+    """Vários jogos de uma vez (a tela Adicionar jogo com seleção múltipla)."""
+
+    games: list[GameCreate] = Field(min_length=1, max_length=50)
+
+
 class GamePatch(BaseModel):
     """Só os campos enviados são alterados. Editar um campo de metadado o trava contra a integração."""
 
@@ -261,6 +270,7 @@ class GamePatch(BaseModel):
     genre_id: int | None = None
     status: Status | None = None
     priority: Priority | None = None
+    access: Access | None = None
     hidden: bool | None = None
     hltb_main_hours: float | None = Field(default=None, ge=0)
     hltb_extra_hours: float | None = Field(default=None, ge=0)
@@ -506,6 +516,7 @@ class PublicGameCard(BaseModel):
     platform: str
     genre: str | None
     status: Status
+    access: Access = "owned"
     user_score: int | None
     metacritic_score: int | None
     hltb_main_hours: float | None

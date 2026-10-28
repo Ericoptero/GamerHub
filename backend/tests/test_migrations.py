@@ -85,3 +85,31 @@ def test_upgrade_from_0001_keeps_children(empty_db):
         assert conn.execute(text("SELECT ranked, public FROM lists")).one() == (0, 1)
         conn.execute(text("DELETE FROM games WHERE id = 1"))
         assert (_count(conn, "lists"), _count(conn, "list_items")) == (1, 0)
+
+
+def test_0007_access_from_hype_release_date(empty_db):
+    migrate("0006")
+    with dbmod.get_engine().begin() as conn:
+        conn.execute(text("INSERT INTO platforms (id, name, sort_order) VALUES (1, 'PC', 0)"))
+        rows = [
+            (1, "sem data", "hype", None),
+            (2, "futuro", "hype", "2999-01-01"),
+            (3, "lançado", "hype", "2020-05-01"),
+            (4, "na fila", "backlog", "2999-01-01"),
+        ]
+        for gid, name, status, release in rows:
+            conn.execute(
+                text(
+                    "INSERT INTO games (id, user_id, name, name_norm, platform_id, status, release_date, tags, origin,"
+                    " locked_fields) VALUES (:id, 1, :n, :n, 1, :st, :rd, '[]', 'manual', '[]')"
+                ),
+                {"id": gid, "n": name, "st": status, "rd": release},
+            )
+
+    migrate()
+
+    with dbmod.get_engine().begin() as conn:
+        got = conn.execute(text("SELECT access FROM games ORDER BY id")).scalars().all()
+        assert got == ["unreleased", "unreleased", "wishlist", "owned"]
+    with pytest.raises(IntegrityError), dbmod.get_engine().begin() as conn:
+        conn.execute(text("UPDATE games SET access = 'emprestado'"))

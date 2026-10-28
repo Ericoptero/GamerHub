@@ -63,8 +63,9 @@ const owned = [
     release_date: "2018-01-25",
     genre_id: 6,
     genre: "Plataforma",
+    access: "gamepass",
   }),
-  game({ name: "Gwent", status: "owned", stores: ["GOG"], account_ids: [3], enriched: false }),
+  game({ name: "Gwent", status: "owned", stores: ["GOG"], account_ids: [3], enriched: false, access: "wishlist" }),
   game({
     name: "Portal 2",
     status: "owned",
@@ -92,6 +93,15 @@ describe("filtros", () => {
     expect(run({ devices: [10, 11] })).toHaveLength(5);
     expect(run({ priorities: ["Media"] })).toEqual(["Advance Wars", "Alien: Isolation"]);
     expect(run({ priorities: ["Alta", "Baixa"] })).toEqual(["Pokémon Emerald", "Alan Wake"]);
+  });
+
+  it("filtra pela posse", () => {
+    expect(runOwned({ access: ["gamepass"] })).toEqual(["Celeste"]);
+    expect(runOwned({ access: ["gamepass", "wishlist"] })).toEqual(["Celeste", "Gwent"]);
+    expect(runOwned({ access: ["owned"] })).toEqual(["Portal 2", "Hades"]);
+    const chips = activeChips({ ...ownedTab, access: ["gamepass"] }, { devices, genres: [], accounts: [] });
+    expect(chips.map((c) => c.label)).toEqual(["Posse: Game Pass"]);
+    expect(chips[0].remove({ ...ownedTab, access: ["gamepass"] }).access).toEqual([]);
   });
 
   it("ordena finalizados por data com 'Antes de 2022' no fim, nas duas direções", () => {
@@ -165,6 +175,7 @@ describe("filtros", () => {
       accounts: [1, 2],
       tags: ["Roguelike"],
       priorities: ["Alta"],
+      access: ["gamepass", "wishlist"],
       company: "Valve",
       ranges: {
         ...ownedTab.ranges,
@@ -183,19 +194,23 @@ describe("filtros", () => {
     expect(sp.get("mc")).toBe("80-");
     expect(sp.get("mcu")).toBe("7.5-9");
     expect(sp.getAll("plataforma")).toEqual(["PC", "Mega Drive, Genesis"]);
+    expect(sp.getAll("posse")).toEqual(["gamepass", "wishlist"]);
     expect(parseFilters(new URLSearchParams(sp.toString()))).toEqual(f);
     expect(serializeFilters(emptyFilters("backlog")).toString()).toBe("");
     expect(serializeFilters(emptyFilters("owned")).toString()).toBe("lista=owned");
   });
 
   it("aceita os parâmetros antigos e ignora lixo", () => {
-    const f = parseFilters(new URLSearchParams("lista=done&ordem=short&plataforma=GBA&aparelho=11&prio=Media&mc=abc-"));
+    const f = parseFilters(
+      new URLSearchParams("lista=done&ordem=short&plataforma=GBA&aparelho=11&prio=Media&posse=gamepass&posse=x&mc=abc-"),
+    );
     expect(f.tab).toBe("done");
     expect(f.sort).toBe("short");
     expect(f.dir).toBe("asc");
     expect(f.platforms).toEqual(["GBA"]);
     expect(f.devices).toEqual([11]);
     expect(f.priorities).toEqual(["Media"]);
+    expect(f.access).toEqual(["gamepass"]);
     expect(f.ranges.mc).toEqual({ min: null, max: null });
     expect(parseFilters(new URLSearchParams("lista=xyz&ordem=nada&dir=x")).tab).toBe("backlog");
   });

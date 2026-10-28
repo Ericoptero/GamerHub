@@ -4,7 +4,7 @@ from sqlalchemy import JSON, CheckConstraint, Float, ForeignKey, Index, String, 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
-from app.domain import LINK_STATUSES, PRIORITIES, STATUSES
+from app.domain import ACCESS, LINK_STATUSES, PRIORITIES, STATUSES
 from app.models.catalog import Genre, Platform, Store, game_stores
 
 
@@ -17,6 +17,7 @@ class Game(Base):
     __table_args__ = (
         CheckConstraint(_in("status", STATUSES), name="ck_games_status"),
         CheckConstraint(f"priority IS NULL OR {_in('priority', PRIORITIES)}", name="ck_games_priority"),
+        CheckConstraint(_in("access", ACCESS), name="ck_games_access"),
         CheckConstraint("user_score IS NULL OR user_score BETWEEN 1 AND 10", name="ck_games_user_score"),
         Index("ix_games_status", "status"),
         Index("ix_games_name_norm", "name_norm"),
@@ -30,6 +31,8 @@ class Game(Base):
     genre_id: Mapped[int | None] = mapped_column(ForeignKey("genres.id", ondelete="SET NULL"))
     status: Mapped[str] = mapped_column(String(20), default="backlog")
     priority: Mapped[str | None] = mapped_column(String(10))
+    # Posse (domain.ACCESS): "owned" é o normal; os outros ganham um ícone no card.
+    access: Mapped[str] = mapped_column(String(12), default="owned")
     # Fora de todas as listas; só aparece em "Ocultos".
     hidden: Mapped[bool] = mapped_column(default=False)
 

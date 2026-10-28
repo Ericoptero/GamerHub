@@ -192,6 +192,20 @@ export function useCreateGame() {
   });
 }
 
+/** Vários jogos de uma vez; os vinculados a uma integração ganham um job só de busca dos dados. */
+export function useCreateGames() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (games: GameCreate[]) => api.post<GameCard[]>("/api/games/batch", { games }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.games });
+      qc.invalidateQueries({ queryKey: keys.platforms });
+      qc.invalidateQueries({ queryKey: keys.stores });
+      qc.invalidateQueries({ queryKey: keys.jobs });
+    },
+  });
+}
+
 export function useDeleteGame() {
   const qc = useQueryClient();
   return useMutation({

@@ -4,13 +4,15 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { ApiError } from "../../api/client";
 import { useMe, usePublicProfile } from "../../api/queries";
 import type { PublicGameCard, PublicProfile } from "../../api/types";
+import { AccessBadge } from "../../components/AccessBadge";
 import { GameCover } from "../../components/GameCover";
 import { Icon } from "../../components/Icon";
 import layout from "../../components/Layout.module.css";
 import { ErrorState, LoadingState } from "../../components/NotFound";
 import { STATUS, STATUS1, STATUS_DOT, mcColor } from "../../lib/constants";
-import { fmtDate, hrs, plural } from "../../lib/format";
+import { fmtDate, plural } from "../../lib/format";
 import { TagPicker } from "../library/FilterPanel";
+import { timeLabel } from "../library/cardInfo";
 import { ListCard } from "../lists/ListCard";
 import { resolveGames } from "../lists/lists";
 import styles from "./PublicPage.module.css";
@@ -285,14 +287,6 @@ function tabLabel(t: PublicTab): string {
 }
 
 export function PublicCard({ game: g, showStatus, rank }: { game: PublicGameCard; showStatus: boolean; rank?: number }) {
-  const played = g.status === "done" || g.status === "dropped";
-  const timeLabel = played
-    ? g.played_hours
-      ? `${hrs(g.played_hours)} jogadas`
-      : "—"
-    : g.hltb_main_hours
-      ? (hrs(g.hltb_main_hours) ?? "")
-      : "HLTB —";
   const finished = g.status === "done" ? (g.finished_at ? fmtDate(g.finished_at) : g.finished_label) : null;
   const meta = [showStatus ? STATUS1[g.status] : null, g.platform, finished].filter(Boolean).join(" · ");
   return (
@@ -301,8 +295,9 @@ export function PublicCard({ game: g, showStatus, rank }: { game: PublicGameCard
         name={g.name}
         platform={g.platform}
         cover={g.cover}
+        badge={g.access !== "owned" && <AccessBadge access={g.access} releaseDate={g.release_date} />}
         footer={{
-          left: timeLabel,
+          left: timeLabel(g),
           right: g.metacritic_score !== null ? `MC ${g.metacritic_score}` : "MC —",
           rightColor: mcColor(g.metacritic_score),
         }}

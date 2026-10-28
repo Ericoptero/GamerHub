@@ -211,6 +211,20 @@ def link_and_refresh(db: Session, game: Game, provider: str, external_id: str) -
     return request_refresh(db, game, RefreshIn(force=False))
 
 
+def link_and_refresh_many(db: Session, user_id: int, links: list[tuple[Game, str, str]]) -> Job:
+    """Vários jogos recém-adicionados: cada um com o seu link e um job só, que busca até 3 em paralelo."""
+    for game, provider, external_id in links:
+        set_link(db, game, provider, external_id, "confirmed")
+    params = {
+        "game_ids": [game.id for game, _, _ in links],
+        "providers": None,
+        "force": False,
+        "rematch": False,
+        "done": [],
+    }
+    return _create(db, user_id, "refresh", params, REFRESH_PRIORITY, len(links))
+
+
 def cancel(db: Session, job: Job) -> Job:
     if job.status in ("queued", "running"):
         job.status = "cancelled"

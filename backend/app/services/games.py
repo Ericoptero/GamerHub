@@ -91,6 +91,7 @@ def to_card(g: Game, owned: Ownership | None = None) -> GameCard:
         genre=g.genre.name if g.genre else None,
         status=g.status,  # type: ignore[arg-type]
         priority=g.priority,  # type: ignore[arg-type]
+        access=g.access,  # type: ignore[arg-type]
         hltb_main_hours=g.hltb_main_hours,
         played_hours=g.played_hours,
         user_score=g.user_score,
@@ -122,6 +123,7 @@ def to_public_card(g: Game) -> PublicGameCard:
         platform=g.platform.name,
         genre=g.genre.name if g.genre else None,
         status=g.status,  # type: ignore[arg-type]
+        access=g.access,  # type: ignore[arg-type]
         user_score=g.user_score,
         metacritic_score=g.metacritic_score,
         hltb_main_hours=g.hltb_main_hours,
@@ -239,6 +241,7 @@ def create_game(db: Session, user_id: int, data: GameCreate) -> Game:
         genre=_genre(db, data.genre_id),
         status=data.status,
         priority=data.priority,
+        access=data.access,
         hltb_main_hours=data.hltb_main_hours,
         metacritic_score=data.metacritic_score,
         metacritic_source="manual" if data.metacritic_score is not None else None,
@@ -254,7 +257,9 @@ def create_game(db: Session, user_id: int, data: GameCreate) -> Game:
     # Valores digitados à mão num cadastro manual valem mais que a integração.
     if not data.link:
         game.locked_fields = [
-            f for f in ("hltb_main_hours", "metacritic_score", "description", "cover_url") if getattr(game, f)
+            f
+            for f in ("hltb_main_hours", "metacritic_score", "release_date", "description", "cover_url")
+            if getattr(game, f)
         ]
     cat = CatalogCache(db)
     game.stores = cat.stores_from(data.stores)
@@ -269,6 +274,14 @@ def create_game(db: Session, user_id: int, data: GameCreate) -> Game:
     return game
 
 
+def create_games(db: Session, user_id: int, items: list[GameCreate]) -> list[Game]:
+    """Valida tudo antes: uma plataforma ou gênero inexistente recusa o lote inteiro, sem criar nenhum."""
+    for item in items:
+        _platform(db, item.platform_id)
+        _genre(db, item.genre_id)
+    return [create_game(db, user_id, item) for item in items]
+
+
 def patch_game(db: Session, game: Game, patch: GamePatch) -> Game:
     sent = patch.model_fields_set - {"unlock", "stores", "platform_id", "genre_id"}
     locked = set(game.locked_fields or [])
@@ -280,7 +293,7 @@ def patch_game(db: Session, game: Game, patch: GamePatch) -> Game:
                 continue
             value = value.strip()
             game.name_norm = normalize_title(value)
-        if field in ("status", "hidden") and value is None:
+        if field in ("status", "access", "hidden") and value is None:
             continue
         if field in META_FIELDS and getattr(game, field) != value:
             locked.add(field)
@@ -366,6 +379,8 @@ def merge_games(db: Session, target: Game, source: Game) -> Game:
         target.played_hours, target.played_hours_source = source.played_hours, source.played_hours_source
     if target.status == "owned" and source.status != "owned":
         target.status = source.status
+    if source.access == "owned":
+        target.access = "owned"
     target.locked_fields = sorted(set(target.locked_fields or []) | set(source.locked_fields or []))
     source_id = source.id
     db.delete(source)

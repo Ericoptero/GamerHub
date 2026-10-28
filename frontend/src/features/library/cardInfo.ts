@@ -2,6 +2,7 @@
 // Cada item liga/desliga nas preferências; no modo automático, o que é igual em todos os
 // cards da lista sai do card e aparece uma vez no subtítulo.
 import type { Account, Device, GameCard } from "../../api/types";
+import { fmtRelease, hrs } from "../../lib/format";
 import type { CardPrefs } from "../../lib/prefs";
 import { accountLabel } from "./filters";
 
@@ -64,6 +65,14 @@ export function sharedSummary(shared: CardDisplay["shared"], accounts: Map<numbe
     if (labels.length) parts.push(`nas contas ${labels.map(accountLabel).join(", ")}`);
   }
   return parts;
+}
+
+/** Faixa de baixo da capa: horas jogadas para o que já acabou (finalizado/dropado), a data de lançamento
+ * no Hype e o tempo do HLTB no resto. */
+export function timeLabel(g: Pick<GameCard, "status" | "played_hours" | "hltb_main_hours" | "release_date">): string {
+  if (g.status === "hype") return fmtRelease(g.release_date);
+  if (g.status === "done" || g.status === "dropped") return g.played_hours ? `${hrs(g.played_hours)} jogadas` : "—";
+  return g.hltb_main_hours ? (hrs(g.hltb_main_hours) ?? "") : "HLTB —";
 }
 
 /** Linha de meta do card: "PC · PC, Steam Deck" (ou só uma das partes). */

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { initials, palette } from "../lib/cover";
 import styles from "./GameCover.module.css";
@@ -14,16 +14,21 @@ interface Props {
   alt?: string;
   /** Sem as iniciais da capa gerada (capas sobrepostas do mosaico, onde só aparece uma tira). */
   hideInitials?: boolean;
+  /** Selo no canto superior esquerdo (a posse); o rótulo de plataforma da capa gerada anda para o lado. */
+  badge?: ReactNode;
 }
 
 /** Capa 2:3: a imagem da integração quando existir; senão a capa gerada do protótipo. */
-export function GameCover({ name, platform, cover, size = "card", footer, alt = "", hideInitials }: Props) {
+export function GameCover({ name, platform, cover, size = "card", footer, alt = "", hideInitials, badge }: Props) {
   const [bg, band] = palette(name, platform);
   const style = { "--c0": bg, "--c1": band } as CSSProperties;
   // Capa que não carrega (ex.: arte da loja que mudou de endereço): fica a capa gerada.
   const [broken, setBroken] = useState<string | null>(null);
   return (
-    <span className={`${styles.cover} ${size === "hero" ? styles.hero : size === "thumb" ? styles.thumb : ""}`} style={style}>
+    <span
+      className={`${styles.cover} ${size === "hero" ? styles.hero : size === "thumb" ? styles.thumb : ""} ${badge ? styles.withBadge : ""}`}
+      style={style}
+    >
       {!hideInitials && (
         <span className={styles.initials} aria-hidden="true">
           {initials(name)}
@@ -42,6 +47,7 @@ export function GameCover({ name, platform, cover, size = "card", footer, alt = 
           onError={() => setBroken(cover)}
         />
       )}
+      {badge && <span className={styles.badge}>{badge}</span>}
       {footer && (
         <span className={styles.footer}>
           <span className={styles.footerLeft}>{footer.left}</span>

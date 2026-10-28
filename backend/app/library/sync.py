@@ -199,6 +199,8 @@ class _Resolver:
     def _link(self, item: LibraryItem, game: Game) -> None:
         item.game_id = game.id
         self.claimed.add(game.id)
+        # Está numa conta de loja: você comprou (mesmo que estivesse como "ainda não comprei" ou Game Pass).
+        game.access = "owned"
         # A etiqueta entra só quando o item é ligado: se o usuário a tirar depois, não volta.
         if self.tag not in game.stores:
             game.stores.append(self.tag)

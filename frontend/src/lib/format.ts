@@ -11,6 +11,11 @@ export function fmtDate(d: string | null | undefined): string {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : d;
 }
 
+/** Data de lançamento no card do Hype: "04/10/2026" ou "Sem data". */
+export function fmtRelease(d: string | null | undefined): string {
+  return d ? fmtDate(d) : "Sem data";
+}
+
 /** Datetime do backend (UTC, sem "Z") -> Date local. */
 export function parseUtc(dt: string): Date {
   return new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(dt) ? dt : `${dt}Z`);

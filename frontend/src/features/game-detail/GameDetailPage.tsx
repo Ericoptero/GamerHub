@@ -3,14 +3,14 @@ import { Link, useParams } from "react-router";
 
 import { ApiError, errorMessage } from "../../api/client";
 import { useDeleteGame, useDevices, useGame, useUpdateGame } from "../../api/queries";
-import type { GameDetail, GamePatch, Priority, Status } from "../../api/types";
+import type { Access, GameDetail, GamePatch, Priority, Status } from "../../api/types";
 import { useConfirm } from "../../components/Confirm";
 import { ErrorState, LoadingState, NotFound } from "../../components/NotFound";
 import { useToast } from "../../components/Toast";
 import { useJobWatcher } from "../../components/useJobWatcher";
-import { PRIORITY_LABEL, STATUS, STATUS1 } from "../../lib/constants";
+import { ACCESS_LABEL, PRIORITY_LABEL, STATUS, STATUS1 } from "../../lib/constants";
 import { palette } from "../../lib/cover";
-import { parseUtc, todayIso } from "../../lib/format";
+import { fmtDate, parseUtc, todayIso } from "../../lib/format";
 import { useBackToLibrary } from "../library/returnTo";
 import { InfoCard, ScoresCard, WhereCard } from "./Aside";
 import { ListsCard } from "./ListsCard";
@@ -90,6 +90,25 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
       },
     );
 
+  const setAccess = (access: Access) =>
+    update.mutate(
+      { access },
+      {
+        onError: (e) =>
+          toast.error(`Não consegui mudar a posse para ${ACCESS_LABEL[access].toLowerCase()}: ${errorMessage(e)}`),
+      },
+    );
+
+  const setRelease = (release_date: string | null) =>
+    update.mutate(
+      { release_date },
+      {
+        onSuccess: () =>
+          toast.show(release_date ? `Lançamento em ${fmtDate(release_date)}.` : "Data de lançamento apagada.", "ok"),
+        onError: (e) => toast.error(`Não consegui salvar a data de lançamento: ${errorMessage(e)}`),
+      },
+    );
+
   const toggleHidden = () => {
     const hidden = !game.hidden;
     update.mutate(
@@ -127,7 +146,14 @@ function Detail({ game, devices }: { game: GameDetail; devices: NonNullable<Retu
 
   return (
     <div style={{ "--c0": c0, "--c1": c1 } as CSSProperties}>
-      <Hero game={game} onMove={move} onPriority={setPriority} busy={update.isPending} />
+      <Hero
+        game={game}
+        onMove={move}
+        onPriority={setPriority}
+        onAccess={setAccess}
+        onRelease={setRelease}
+        busy={update.isPending}
+      />
       <div className={styles.body}>
         <div className={styles.mainCol}>
           {enriching && (

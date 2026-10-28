@@ -17,6 +17,7 @@ const card = (name: string, patch: Partial<PublicGameCard> = {}): PublicGameCard
   platform: "PC",
   genre: null,
   status: "backlog",
+  access: "owned",
   user_score: null,
   metacritic_score: null,
   hltb_main_hours: null,

@@ -101,6 +101,66 @@ def test_create_manual_game(loaded):
     assert loaded.get(f"/api/games/{g['id']}").status_code == 404
 
 
+def test_access_and_release_date(loaded):
+    pc = next(p["id"] for p in loaded.get("/api/platforms").json() if p["name"] == "PC")
+    base = {"name": "Jogo do Futuro", "platform_id": pc, "status": "hype"}
+    assert loaded.post("/api/games", json={**base, "access": "emprestado"}).status_code == 422
+    r = loaded.post("/api/games", json={**base, "access": "unreleased", "release_date": "2027-02-01"})
+    assert r.status_code == 201, r.text
+    g = r.json()
+    assert (g["access"], g["release_date"]) == ("unreleased", "2027-02-01")
+    assert g["locked_fields"] == ["release_date"]  # digitada no cadastro manual: a integração não troca
+    assert _find(loaded, "Jogo do Futuro")["access"] == "unreleased"
+    assert _find(loaded, "Eastward")["access"] == "owned"
+
+    body = loaded.patch(f"/api/games/{g['id']}", json={"access": "gamepass"}).json()
+    assert body["access"] == "gamepass" and body["locked_fields"] == ["release_date"]
+    assert loaded.patch(f"/api/games/{g['id']}", json={"access": None}).json()["access"] == "gamepass"
+    assert loaded.patch(f"/api/games/{g['id']}", json={"access": "emprestado"}).status_code == 422
+
+    exported = loaded.get("/api/export.json").json()
+    assert next(x for x in exported["games"] if x["name"] == g["name"])["access"] == "gamepass"
+    for x in exported["games"]:
+        del x["access"]  # export de antes da posse
+    r = loaded.post(
+        "/api/import/json?mode=substituir",
+        files={"file": ("export.json", json.dumps(exported).encode(), "application/json")},
+    )
+    assert r.status_code == 200, r.text
+    assert {x["access"] for x in loaded.get("/api/games").json()} == {"owned"}
+
+
+def test_create_games_batch(loaded):
+    pc = next(p["id"] for p in loaded.get("/api/platforms").json() if p["name"] == "PC")
+    defaults = {"platform_id": pc, "status": "owned", "priority": "Baixa"}
+    items = [
+        {**defaults, "name": "Hades II", "access": "gamepass", "link": {"provider": "igdb", "external_id": "1"}},
+        {**defaults, "name": "Tunic"},
+        {**defaults, "name": "Celeste", "link": {"provider": "rawg", "external_id": "2"}},
+    ]
+    r = loaded.post("/api/games/batch", json={"games": items})
+    assert r.status_code == 201, r.text
+    cards = r.json()
+    assert [(c["name"], c["status"], c["priority"], c["access"]) for c in cards] == [
+        ("Hades II", "owned", "Baixa", "gamepass"),
+        ("Tunic", "owned", "Baixa", "owned"),
+        ("Celeste", "owned", "Baixa", "owned"),
+    ]
+    # Um job só para os vinculados.
+    (job,) = loaded.get("/api/jobs", params={"kind": "refresh"}).json()
+    assert job["params"]["game_ids"] == [cards[0]["id"], cards[2]["id"]] and job["total"] == 2
+    celeste = loaded.get(f"/api/games/{cards[2]['id']}").json()
+    assert [(lk["provider"], lk["status"]) for lk in celeste["links"]] == [("rawg", "confirmed")]
+    assert loaded.get(f"/api/games/{cards[1]['id']}").json()["origin"] == "manual"
+
+    # Uma plataforma inexistente recusa o lote inteiro.
+    total = len(loaded.get("/api/games").json())
+    r = loaded.post("/api/games/batch", json={"games": [{**defaults, "name": "A"}, {**defaults, "name": "B", "platform_id": 999}]})
+    assert r.status_code == 422
+    assert len(loaded.get("/api/games").json()) == total
+    assert loaded.post("/api/games/batch", json={"games": []}).status_code == 422
+
+
 def test_platform_delete_conflict_and_devices(loaded):
     plats = {p["name"]: p for p in loaded.get("/api/platforms").json()}
     assert plats["GBA"]["game_count"] == 3

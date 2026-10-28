@@ -3,6 +3,8 @@
 
 export type Status = "backlog" | "playing" | "done" | "dropped" | "hype" | "owned";
 export type Priority = "Alta" | "Media" | "Baixa";
+/** Posse: se você tem o jogo, à parte do status. */
+export type Access = "owned" | "unreleased" | "wishlist" | "gamepass";
 export type ProviderName = "igdb" | "rawg" | "hltb" | "metacritic";
 export type SearchProvider = "igdb" | "rawg";
 export type StoreName = "steam" | "epic" | "gog";
@@ -87,6 +89,7 @@ export interface GameCard {
   genre: string | null;
   status: Status;
   priority: Priority | null;
+  access: Access;
   hltb_main_hours: number | null;
   played_hours: number | null;
   user_score: number | null;
@@ -221,6 +224,7 @@ export interface GameCreate {
   genre_id?: number | null;
   status?: Status;
   priority?: Priority | null;
+  access?: Access;
   hltb_main_hours?: number | null;
   metacritic_score?: number | null;
   release_date?: string | null;
@@ -238,6 +242,7 @@ export interface GamePatch {
   genre_id?: number | null;
   status?: Status;
   priority?: Priority | null;
+  access?: Access;
   hidden?: boolean;
   hltb_main_hours?: number | null;
   hltb_extra_hours?: number | null;
@@ -520,6 +525,7 @@ export interface PublicGameCard {
   platform: string;
   genre: string | null;
   status: Status;
+  access: Access;
   user_score: number | null;
   metacritic_score: number | null;
   hltb_main_hours: number | null;

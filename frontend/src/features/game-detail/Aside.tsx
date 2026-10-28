@@ -7,7 +7,7 @@ import { Icon } from "../../components/Icon";
 import { McRing } from "../../components/McRing";
 import { StoreMark } from "../../components/StoreMark";
 import { useToast } from "../../components/Toast";
-import { ORIGIN_LABEL, PRIORITY_LABEL, STORE_LABEL, mcWord } from "../../lib/constants";
+import { ACCESS_LABEL, ORIGIN_LABEL, PRIORITY_LABEL, STORE_LABEL, mcWord } from "../../lib/constants";
 import { fmtDate, fmtLocalDate, hrs } from "../../lib/format";
 import styles from "./GameDetail.module.css";
 
@@ -192,6 +192,8 @@ export function InfoCard({
         <dd>{game.genre ?? "Sem gênero"}</dd>
         <dt>Prioridade</dt>
         <dd>{game.priority ? PRIORITY_LABEL[game.priority] : "—"}</dd>
+        <dt>Posse</dt>
+        <dd>{ACCESS_LABEL[game.access]}</dd>
         <dt>Finalizado em</dt>
         <dd>{finished}</dd>
         <dt>Zerado</dt>

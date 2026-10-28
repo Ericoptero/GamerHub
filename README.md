@@ -55,6 +55,10 @@ Metacritic, tempo do HLTB, horas jogadas e atalhos como "Curtos e bem avaliados"
 tem 15 ordenações, entre elas "nota por hora" (Metacritic ÷ HLTB), e aparece em grade de capas ou
 em lista, com uma linha por jogo e ordenação clicando no cabeçalho das colunas.
 
+Além do status, cada jogo tem a **posse**: Tenho, Aguardando lançamento, Ainda não comprei ou
+Game Pass. As três últimas aparecem como um ícone no card e também servem de filtro. No Hype, o
+card mostra a data de lançamento.
+
 ![Painel de filtros aberto no status Biblioteca](docs/screenshots/filtros.png)
 
 ### Listas
@@ -68,8 +72,15 @@ jogo (#1, #2…) na ordem que você arrastar.
 
 Descrição, trailer e screenshots, Metacritic (crítica e usuários), tempos do HowLongToBeat,
 horas jogadas por conta, onde dá para jogar, tags, sua nota e review, comentários de progresso e
-o resumo da história. Mudar de status e de prioridade leva um clique, e o card **Listas** põe o
-jogo nas suas listas.
+o resumo da história. Mudar de status, prioridade e posse leva um clique (no Hype, a data de
+lançamento fica logo abaixo), e o card **Listas** põe o jogo nas suas listas.
+
+### Adicionar jogos
+
+A busca no IGDB ou na RAWG aceita vários jogos de uma vez. Cada jogo selecionado entra como
+**Biblioteca**, com prioridade baixa e posse "Tenho". Dá para trocar isso jogo a jogo ou para todos
+de uma vez antes de confirmar. Os dados de todos (capa, HLTB, Metacritic…) são buscados num único
+lote.
 
 ![Página de um jogo com descrição, notas, tempos e contas](docs/screenshots/jogo.png)
 

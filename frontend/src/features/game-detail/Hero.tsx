@@ -1,10 +1,22 @@
 import { useState, type CSSProperties } from "react";
 import { Link } from "react-router";
 
-import type { GameDetail, Priority, Status } from "../../api/types";
+import type { Access, GameDetail, Priority, Status } from "../../api/types";
+import { AccessBadge } from "../../components/AccessBadge";
 import { GameCover } from "../../components/GameCover";
 import { Icon } from "../../components/Icon";
-import { PRIORITIES, PRIORITY_LABEL, STATUS, STATUS1, STATUS_DOT, STATUS_HINT, STATUS_ORDER } from "../../lib/constants";
+import {
+  ACCESS_HINT,
+  ACCESS_LABEL,
+  ACCESS_ORDER,
+  PRIORITIES,
+  PRIORITY_LABEL,
+  STATUS,
+  STATUS1,
+  STATUS_DOT,
+  STATUS_HINT,
+  STATUS_ORDER,
+} from "../../lib/constants";
 import { initials } from "../../lib/cover";
 import { useBackToLibrary } from "../library/returnTo";
 import styles from "./GameDetail.module.css";
@@ -13,11 +25,15 @@ export function Hero({
   game,
   onMove,
   onPriority,
+  onAccess,
+  onRelease,
   busy,
 }: {
   game: GameDetail;
   onMove: (s: Status) => void;
   onPriority: (p: Priority | null) => void;
+  onAccess: (a: Access) => void;
+  onRelease: (date: string | null) => void;
   busy: boolean;
 }) {
   const genreShort = (game.genre ?? "").replace(/\s*\(.*\)\s*/, "");
@@ -62,6 +78,8 @@ export function Hero({
             </div>
             <ListPicker game={game} onMove={onMove} busy={busy} />
             <PriorityPicker priority={game.priority} onChange={onPriority} busy={busy} />
+            <AccessPicker access={game.access} onChange={onAccess} busy={busy} />
+            {game.status === "hype" && <ReleaseField key={game.release_date ?? ""} game={game} onChange={onRelease} />}
           </div>
         </div>
       </div>
@@ -165,6 +183,93 @@ function PriorityPicker({
       </div>
       <span id="prio-dica" className={styles.prioNote}>
         A Lista de espera é ordenada por ela.
+      </span>
+    </div>
+  );
+}
+
+const ACCESS_COLOR: Record<Access, string> = {
+  owned: "var(--ok)",
+  unreleased: "var(--st-hype)",
+  wishlist: "var(--text-2)",
+  gamepass: "#4fb04f",
+};
+
+/** Se você tem o jogo, à parte do status; fora o "Tenho", vira um ícone no card. */
+function AccessPicker({ access, onChange, busy }: { access: Access; onChange: (a: Access) => void; busy: boolean }) {
+  const [hovered, setHovered] = useState<Access | null>(null);
+  const shown = hovered ?? access;
+  return (
+    <div className={styles.prioRow}>
+      <span id="h-posse" className={styles.pickerLabel}>
+        Posse
+      </span>
+      <div
+        className={styles.prios}
+        role="group"
+        aria-labelledby="h-posse"
+        aria-describedby="posse-dica"
+        onMouseLeave={() => setHovered(null)}
+      >
+        {ACCESS_ORDER.map((a) => {
+          const current = a === access;
+          return (
+            <button
+              key={a}
+              type="button"
+              aria-pressed={current}
+              aria-disabled={busy || undefined}
+              className={`${styles.move} ${styles.prio} ${current ? styles.moveOn : ""}`}
+              style={{ "--dot": ACCESS_COLOR[a] } as CSSProperties}
+              onMouseEnter={() => setHovered(a)}
+              onFocus={() => setHovered(a)}
+              onBlur={() => setHovered(null)}
+              onClick={() => !current && !busy && onChange(a)}
+            >
+              {current ? (
+                <Icon name="check" size={14} strokeWidth={3} className={styles.moveCheck} />
+              ) : (
+                <AccessBadge access={a} variant="inline" />
+              )}
+              {ACCESS_LABEL[a]}
+            </button>
+          );
+        })}
+      </div>
+      <span id="posse-dica" className={styles.prioNote} aria-live="polite">
+        {ACCESS_HINT[shown]}
+      </span>
+    </div>
+  );
+}
+
+/** Data de lançamento de um jogo no Hype: é ela que aparece no card. Salva ao sair do campo. */
+function ReleaseField({ game, onChange }: { game: GameDetail; onChange: (date: string | null) => void }) {
+  const [value, setValue] = useState(game.release_date ?? "");
+  // Data digitada pela metade chega vazia ("badInput"): não apaga a data salva.
+  const save = (input: HTMLInputElement) => {
+    if (!input.validity.badInput && (value || null) !== game.release_date) onChange(value || null);
+  };
+  return (
+    <div className={styles.prioRow}>
+      <label htmlFor="h-lancamento" className={styles.pickerLabel}>
+        Lançamento
+      </label>
+      <input
+        id="h-lancamento"
+        type="date"
+        className={`input ${styles.releaseInput}`}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={(e) => save(e.currentTarget)}
+        onKeyDown={(e) => e.key === "Enter" && save(e.currentTarget)}
+        aria-describedby="lancamento-dica"
+      />
+      <span id="lancamento-dica" className={styles.prioNote}>
+        {game.release_date
+          ? "Aparece no card do Hype."
+          : "Sem data ainda: ponha aqui ou espere a integração trazer. Aparece no card do Hype."}
+        {game.locked_fields.includes("release_date") && " Editada à mão: a integração não troca."}
       </span>
     </div>
   );
