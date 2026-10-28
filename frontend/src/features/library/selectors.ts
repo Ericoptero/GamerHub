@@ -26,22 +26,27 @@ export function playableInQueue(games: GameCard[], device: Device): number {
 
 export interface LibraryStats {
   hours: string;
+  /** Quantos jogos têm HLTB (os outros não entram na soma). */
+  withHltb: number;
   played: string;
   high: number;
   avg: string;
+  scored: number;
 }
 
+/** Números da sidebar sobre a lista que está na tela (aba, filtros e busca), de qualquer status. */
 export function libraryStats(games: GameCard[]): LibraryStats {
-  const queue = games.filter((g) => g.status === "backlog");
-  const done = games.filter((g) => g.status === "done");
-  const scored = done.filter((g) => g.user_score !== null);
+  const withHltb = games.filter((g) => g.hltb_main_hours);
+  const scored = games.filter((g) => g.user_score !== null);
   const sum = (xs: (number | null)[]) => xs.reduce<number>((a, x) => a + (x || 0), 0);
   return {
-    hours: Math.round(sum(queue.map((g) => g.hltb_main_hours))).toLocaleString("pt-BR") + "h",
-    played: Math.round(sum(done.map((g) => g.played_hours))).toLocaleString("pt-BR") + "h",
-    high: queue.filter((g) => g.priority === "Alta").length,
+    hours: Math.round(sum(withHltb.map((g) => g.hltb_main_hours))).toLocaleString("pt-BR") + "h",
+    withHltb: withHltb.length,
+    played: Math.round(sum(games.map((g) => g.played_hours))).toLocaleString("pt-BR") + "h",
+    high: games.filter((g) => g.priority === "Alta").length,
     avg: scored.length
       ? (sum(scored.map((g) => g.user_score)) / scored.length).toFixed(1).replace(".", ",")
       : "—",
+    scored: scored.length,
   };
 }

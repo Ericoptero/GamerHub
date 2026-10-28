@@ -78,7 +78,7 @@ export function LibraryPage() {
   const list = useMemo(() => filterGames(all, devs, parseFilters(new URLSearchParams(urlKey))), [all, devs, urlKey]);
   const counts = useMemo(() => statusCounts(visible), [visible]);
   const devCounts = useMemo(() => deviceCounts(tabGames, devs), [tabGames, devs]);
-  const stats = useMemo(() => libraryStats(visible), [visible]);
+  const stats = useMemo(() => libraryStats(list), [list]);
   const fc = useMemo(() => facets(tabGames, accs), [tabGames, accs]);
   const accountsById = useMemo(() => new Map(accs.map((a) => [a.id, a])), [accs]);
   const [prefs] = usePrefs();
@@ -171,11 +171,22 @@ export function LibraryPage() {
                 })}
               </div>
             </div>
-            <div className={styles.stats}>
-              <Stat value={stats.hours} label="na fila (HLTB)" />
-              <Stat value={stats.played} label="jogadas" />
-              <Stat value={String(stats.high)} label="prioridade alta" />
-              <Stat value={stats.avg} label="nota média" />
+            <div className={`${styles.group} ${styles.statsGroup}`}>
+              <span className={`eyebrow ${styles.groupLabel}`}>Nesta lista</span>
+              <div className={styles.stats}>
+                <Stat
+                  value={stats.hours}
+                  label="de HLTB"
+                  hint={`Soma do HLTB principal de ${stats.withHltb} dos ${list.length} jogos na tela`}
+                />
+                <Stat value={stats.played} label="jogadas" hint="Soma das horas jogadas dos jogos na tela" />
+                <Stat value={String(stats.high)} label="prioridade alta" />
+                <Stat
+                  value={stats.avg}
+                  label="nota média"
+                  hint={`Média da sua nota em ${stats.scored} ${stats.scored === 1 ? "jogo" : "jogos"} na tela`}
+                />
+              </div>
             </div>
           </div>
         </details>
@@ -346,9 +357,9 @@ export function LibraryPage() {
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+function Stat({ value, label, hint }: { value: string; label: string; hint?: string }) {
   return (
-    <div className={styles.stat}>
+    <div className={styles.stat} title={hint}>
       <span className={styles.statValue}>{value}</span>
       <span className={styles.statLabel}>{label}</span>
     </div>
